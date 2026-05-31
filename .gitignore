@@ -1,2 +1,7 @@
 .worktrees/
 .brainstorm/
+
+# Local secrets — never commit
+.env
+*.pem
+*.key

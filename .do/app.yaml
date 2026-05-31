@@ -1,0 +1,102 @@
+name: rimi-api
+region: sgp  # Singapore — closest to Vietnam
+
+services:
+  - name: api
+    github:
+      repo: TeaSui/RiMi
+      branch: master
+      deploy_on_push: true
+    dockerfile_path: server/Dockerfile
+    source_dir: /
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb  # cheapest tier — ~$5/mo; upgrade when needed
+    health_check:
+      http_path: /v1/health
+      initial_delay_seconds: 30
+      period_seconds: 15
+      timeout_seconds: 5
+      failure_threshold: 3
+    envs:
+      - key: PORT
+        value: "8080"
+        scope: RUN_TIME
+      - key: DB_MIGRATOR_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: DB_APP_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: JWT_PRIVATE_KEY_PEM
+        scope: RUN_TIME
+        type: SECRET
+      - key: JWT_PUBLIC_KEY_PEM
+        scope: RUN_TIME
+        type: SECRET
+      - key: JWT_ISSUER
+        value: rimi-auth
+        scope: RUN_TIME
+      - key: JWT_AUDIENCE
+        value: rimi-api
+        scope: RUN_TIME
+      - key: JWT_KEY_ID
+        value: k1
+        scope: RUN_TIME
+      - key: JWT_ACCESS_TTL
+        value: 15m
+        scope: RUN_TIME
+      - key: REFRESH_TOKEN_TTL
+        value: 720h
+        scope: RUN_TIME
+      - key: SMTP_HOST
+        scope: RUN_TIME
+        type: SECRET
+      - key: SMTP_PORT
+        value: "587"
+        scope: RUN_TIME
+      - key: SMTP_USER
+        scope: RUN_TIME
+        type: SECRET
+      - key: SMTP_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+      - key: SMTP_FROM
+        value: noreply@rimi.app
+        scope: RUN_TIME
+      - key: LOCKOUT_THRESHOLD
+        value: "5"
+        scope: RUN_TIME
+      - key: LOCKOUT_DURATION
+        value: 15m
+        scope: RUN_TIME
+      - key: EMAIL_VERIFY_TTL
+        value: 24h
+        scope: RUN_TIME
+      - key: PASSWORD_RESET_TTL
+        value: 30m
+        scope: RUN_TIME
+      - key: MIGRATIONS_PATH
+        value: file://migrations
+        scope: RUN_TIME
+
+databases:
+  - name: rimi-db
+    engine: PG
+    version: "16"
+    production: false   # set true before going live (enables daily backups, failover)
+    cluster_name: rimi-db-cluster
+
+# Cost estimate (SGP region, 2026):
+#   api instance: apps-s-1vcpu-0.5gb ~$5/month
+#   managed PG (dev): ~$15/month
+#   Total: ~$20/month — well within GitHub Student Pack DO credits ($200)
+#
+# To deploy manually (first time):
+#   doctl apps create --spec .do/app.yaml
+# To update:
+#   doctl apps update <APP_ID> --spec .do/app.yaml
+#
+# After creation, set SECRET env vars in the DO console or via:
+#   doctl apps update <APP_ID> --spec .do/app.yaml
+# and paste the actual values there — never in this file.

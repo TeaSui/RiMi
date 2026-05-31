@@ -1,0 +1,48 @@
+version: "3.9"
+# Local development stack.
+# Copy .env.example to .env and fill in JWT keys before running.
+#
+# Usage:
+#   docker compose up          — start db + api
+#   docker compose up db       — start db only (run server locally with `go run ./cmd/api`)
+#   docker compose down -v     — stop and remove volumes
+#
+# Note: the server auto-runs migrations on startup (db.Migrate in main.go).
+# Ensure DB_MIGRATOR_URL points to a role with DDL permissions in production
+# (rimi_migrator per ADR-002). For local dev, postgres superuser is fine.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rimi
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    # No HEALTHCHECK here: the distroless image has no shell or network tools.
+    # Health is verified externally: curl http://localhost:8080/v1/health
+    # In production (DigitalOcean App Platform), the http_path probe in .do/app.yaml
+    # handles readiness checking against /v1/health.
+
+volumes:
+  pgdata:

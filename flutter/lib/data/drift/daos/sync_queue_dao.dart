@@ -70,9 +70,10 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
           ..where((tbl) =>
               tbl.status.equals('inflight') &
               tbl.inflightSince.isSmallerThanValue(nowMs - leaseMs)))
-        .write(const SyncOperationsCompanion(
-      status: Value('pending'),
-      inflightSince: Value(null),
+        .write(SyncOperationsCompanion(
+      status: const Value('pending'),
+      inflightSince: const Value(null),
+      updatedAt: Value(nowMs),
     ));
   }
 

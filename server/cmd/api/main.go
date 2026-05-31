@@ -20,6 +20,7 @@ import (
 	"github.com/rimi/server/internal/db"
 	"github.com/rimi/server/internal/email"
 	"github.com/rimi/server/internal/middleware"
+	"github.com/rimi/server/internal/products"
 	syncapi "github.com/rimi/server/internal/sync"
 	"github.com/rimi/server/internal/workspace"
 )
@@ -154,6 +155,28 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Authenticate(verifier))
 			r.Get("/realtime", syncHandler.Realtime)
+		})
+
+		// Product catalog routes (authenticated + tenant transaction).
+		productsRepo := products.NewRepository()
+		productsHandler := products.NewHandler(productsRepo)
+
+		r.Route("/products", func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Use(httprate.LimitByIP(120, time.Minute))
+			r.Use(middleware.TenantTx(appPool))
+			r.Get("/", productsHandler.ListProducts)
+			r.Post("/", productsHandler.CreateProduct)
+			r.Put("/{id}", productsHandler.UpdateProduct)
+			r.Delete("/{id}", productsHandler.DeleteProduct)
+		})
+
+		// Inventory routes (authenticated + tenant transaction).
+		r.Route("/inventory", func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Use(httprate.LimitByIP(120, time.Minute))
+			r.Use(middleware.TenantTx(appPool))
+			r.Post("/{id}/adjust", productsHandler.AdjustInventory)
 		})
 	})
 

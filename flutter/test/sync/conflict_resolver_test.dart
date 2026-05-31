@@ -21,12 +21,12 @@ void main() {
 
   test('inventory resolver throws when resolvedValue is null', () async {
     final resolver = InventoryDeltaResolver();
-    final result = SyncOpResult(
+    const result = SyncOpResult(
       opId: 'op-2',
       status: SyncResultStatus.rejected,
       resolvedValue: null,
       serverUpdatedAt: null,
-      error: const SyncError(code: 'not_found', message: 'item not found'),
+      error: SyncError(code: 'not_found', message: 'item not found'),
     );
 
     expect(() => resolver.resolve(result), throwsStateError);

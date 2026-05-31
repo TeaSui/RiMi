@@ -1486,20 +1486,31 @@ ALTER TABLE products DROP COLUMN IF EXISTS updated_at;
 DROP FUNCTION IF EXISTS app.set_updated_at();
 ```
 
-- [ ] **Step 5: Add integration test pool helper**
+- [ ] **Step 5: Create shared pool helper**
 
-If `openPool` does not exist in `server/internal/integration`, add this helper to `server/internal/integration/sync_migration_test.go`:
+Create `server/internal/integration/pool_test.go` — defines `openPool` once for all sync tests:
 
 ```go
+package integration
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
 func openPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	return pgxpool.New(ctx, dsn)
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("pgxpool new: %w", err)
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("pgxpool ping: %w", err)
+	}
+	return pool, nil
 }
-```
-
-Also add the import:
-
-```go
-import "github.com/jackc/pgx/v5/pgxpool"
 ```
 
 - [ ] **Step 6: Run migration test**
@@ -1888,17 +1899,7 @@ func TestSyncBatchIdempotentInventoryDelta(t *testing.T) {
 	}
 }
 
-func openPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		return nil, fmt.Errorf("pgxpool new: %w", err)
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("pgxpool ping: %w", err)
-	}
-	return pool, nil
-}
+// openPool is defined in pool_test.go — shared across sync integration tests.
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -2322,15 +2323,93 @@ Expected: PASS.
 
 - [ ] **Step 7: Add realtime integration test**
 
-Create `server/internal/integration/realtime_test.go` with an authenticated `httptest.Server` that mounts `Authenticate(verifier)` plus `syncHandler.Realtime`. Assert missing token returns 401 and valid token upgrades.
-
-Use this assertion shape:
+Create `server/internal/integration/realtime_test.go`:
 
 ```go
-if resp.StatusCode != http.StatusUnauthorized {
-	t.Fatalf("status = %d, want 401", resp.StatusCode)
+package integration
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	authpkg "github.com/rimi/server/internal/auth"
+	wsmiddleware "github.com/rimi/server/internal/middleware"
+	syncapi "github.com/rimi/server/internal/sync"
+)
+
+func buildRealtimeRouter(t *testing.T) (http.Handler, string) {
+	t.Helper()
+	privPEM, pubPEM := generateTestPEM(t)
+	signer, err := authpkg.NewJWTSigner(privPEM, "rimi-auth", "rimi-api", "k1", 15*time.Minute)
+	if err != nil {
+		t.Fatalf("signer: %v", err)
+	}
+	verifier, err := wsmiddleware.NewJWTVerifier(pubPEM, "rimi-auth", "rimi-api")
+	if err != nil {
+		t.Fatalf("verifier: %v", err)
+	}
+	wsID := "ws-realtime-test"
+	token, _, err := signer.Sign("user-realtime-test", &wsID)
+	if err != nil {
+		t.Fatalf("sign token: %v", err)
+	}
+
+	r := chi.NewRouter()
+	syncHandler := syncapi.NewHandler(syncapi.NewService(syncapi.NewRepository(nil)))
+	r.Group(func(r chi.Router) {
+		r.Use(wsmiddleware.Authenticate(verifier))
+		r.Get("/realtime", syncHandler.Realtime)
+	})
+	return r, token
 }
-```
+
+func TestRealtimeRejectsUnauthenticated(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	router, _ := buildRealtimeRouter(t)
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/realtime", nil)
+	req.Header.Set("Connection", "upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestRealtimeAcceptsValidToken(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	router, token := buildRealtimeRouter(t)
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/realtime", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Connection", "upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		t.Fatalf("valid token rejected with 401")
+	}
+}
 
 - [ ] **Step 8: Run realtime integration test**
 

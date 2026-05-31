@@ -20,6 +20,7 @@ import (
 	"github.com/rimi/server/internal/db"
 	"github.com/rimi/server/internal/email"
 	"github.com/rimi/server/internal/middleware"
+	syncapi "github.com/rimi/server/internal/sync"
 	"github.com/rimi/server/internal/workspace"
 )
 
@@ -132,6 +133,26 @@ func main() {
 			r.Post("/", workspaceHandler.CreateWorkspace)
 			r.Get("/", workspaceHandler.ListWorkspaces)
 			r.Post("/{id}/switch", workspaceHandler.SwitchWorkspace)
+		})
+
+		// Sync routes (authenticated + tenant transaction).
+		// SYNC-SEC-01: Authenticate middleware required.
+		// SYNC-SEC-02/03: workspace from JWT claim only (TenantTx enforces this).
+		syncRepo := syncapi.NewRepository(appPool)
+		syncHandler := syncapi.NewHandler(syncapi.NewService(syncRepo))
+
+		r.Route("/sync", func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Use(middleware.TenantTx(appPool))
+			r.Post("/batch", syncHandler.Batch)
+			r.Get("/pull", syncHandler.Pull)
+		})
+
+		// Realtime WebSocket endpoint (authenticated, no TenantTx — long-lived connection).
+		// SYNC-SEC-13: Authenticate at router level, not inside handler.
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Get("/realtime", syncHandler.Realtime)
 		})
 	})
 

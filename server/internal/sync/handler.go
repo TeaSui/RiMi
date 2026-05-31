@@ -112,13 +112,30 @@ func (h *Handler) Pull(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_ = afterUpdatedAtMs // used in Phase 3 PullProducts
-	_ = afterID          // used in Phase 3 PullProducts
+	tx, ok := middleware.TxFromContext(r.Context())
+	if !ok {
+		middleware.WriteError(w, http.StatusInternalServerError, middleware.ErrInternalError, "Something went wrong.", nil)
+		return
+	}
 
-	// Pull query fully wired in Task 10 verification; stub response for Phase 2 handler wire-up.
+	pgRepo, ok := h.service.Repo.(*PGRepository)
+	if !ok {
+		// Non-PG repo (e.g. test fake) — return empty result set.
+		middleware.WriteJSON(w, http.StatusOK, map[string]any{"rows": []any{}, "has_more": false, "limit": limit})
+		return
+	}
+
+	rows, err := pgRepo.PullProducts(r.Context(), tx, *claims.WorkspaceID, afterUpdatedAtMs, afterID, limit)
+	if err != nil {
+		middleware.WriteError(w, http.StatusInternalServerError, middleware.ErrInternalError, "Something went wrong.", nil)
+		return
+	}
+	if rows == nil {
+		rows = []PullRow{}
+	}
 	middleware.WriteJSON(w, http.StatusOK, map[string]any{
-		"rows":     []any{},
-		"has_more": false,
+		"rows":     rows,
+		"has_more": len(rows) == limit,
 		"limit":    limit,
 	})
 }

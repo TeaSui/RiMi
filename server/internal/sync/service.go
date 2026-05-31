@@ -20,12 +20,12 @@ type TxRepository interface {
 
 // Service owns the sync batch application logic.
 type Service struct {
-	repo Repository
+	Repo Repository
 }
 
 // NewService constructs a Service with the given repository.
 func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{Repo: repo}
 }
 
 const maxBatchOps = 500
@@ -70,7 +70,7 @@ func (s *Service) ApplyBatch(ctx context.Context, userID, workspaceID string, op
 		}
 		sort.Strings(opIDs)
 
-		err := s.repo.WithEntityGroupTx(ctx, userID, workspaceID, entityID, opIDs, func(tx TxRepository) error {
+		err := s.Repo.WithEntityGroupTx(ctx, userID, workspaceID, entityID, opIDs, func(tx TxRepository) error {
 			fresh := make([]Operation, 0, len(group))
 			for _, op := range group {
 				cached, err := tx.CachedResult(ctx, workspaceID, op.OpID)

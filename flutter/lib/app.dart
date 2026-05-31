@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/responsive.dart';
 import 'core/router/app_router.dart';
+import 'core/sync/sync_providers.dart';
 import 'data/mock_data.dart';
 import 'theme/app_theme.dart';
 import 'widgets/navigation.dart';
@@ -63,6 +64,13 @@ class _RiMiAppState extends ConsumerState<RiMiApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Warm sync + realtime providers eagerly so offline infrastructure is
+    // live before any feature page tries to enqueue an operation.
+    ref.watch(appDatabaseProvider);
+    ref.watch(connectivityWatcherProvider);
+    ref.watch(syncFlusherProvider);
+    ref.watch(realtimeManagerProvider);
+
     return MaterialApp.router(
       title: 'RiMi',
       debugShowCheckedModeBanner: false,

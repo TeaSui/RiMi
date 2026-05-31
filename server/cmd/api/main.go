@@ -143,6 +143,7 @@ func main() {
 
 		r.Route("/sync", func(r chi.Router) {
 			r.Use(middleware.Authenticate(verifier))
+			r.Use(httprate.LimitByIP(60, time.Minute)) // SYNC: 60 req/min per IP
 			r.Use(middleware.TenantTx(appPool))
 			r.Post("/batch", syncHandler.Batch)
 			r.Get("/pull", syncHandler.Pull)

@@ -52,20 +52,6 @@ func signTestToken(t *testing.T, privPEM, wsID string) string {
 	return token
 }
 
-// buildAuthedRequest wraps req in middleware.Authenticate so claims are set on the context.
-func buildAuthedRequest(t *testing.T, h http.Handler, req *http.Request, token string) *httptest.ResponseRecorder {
-	t.Helper()
-	privPEM, pubPEM := generateHandlerTestPEM(t)
-	_ = privPEM // key pair generated externally; token passed in
-	verifier, err := middleware.NewJWTVerifier(pubPEM, "rimi-auth", "rimi-api")
-	if err != nil {
-		t.Fatalf("verifier: %v", err)
-	}
-	w := httptest.NewRecorder()
-	middleware.Authenticate(verifier)(h).ServeHTTP(w, req)
-	return w
-}
-
 // makeAuthedHandler wraps a handler with Authenticate using a freshly generated key pair.
 // Returns the wrapped handler and a function to mint tokens for that key pair.
 func makeAuthedHandler(t *testing.T, h http.Handler) (http.Handler, func(wsID string) string) {
@@ -124,6 +110,19 @@ func TestPullRejectsOversizedLimit(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", w.Code)
+	}
+}
+
+// TestPullRejectsMissingClaims verifies 401 when no Authorization header is present.
+func TestPullRejectsMissingClaims(t *testing.T) {
+	h := NewHandler(NewService(newFakeRepo(0)))
+	req := httptest.NewRequest(http.MethodGet, "/v1/sync/pull?entity=product", nil)
+	w := httptest.NewRecorder()
+
+	h.Pull(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", w.Code)
 	}
 }
 

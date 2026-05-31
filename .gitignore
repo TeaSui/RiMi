@@ -1,5 +1,8 @@
 .worktrees/
 .brainstorm/
+.agents/
+.codex/
+.claude/
 
 # Local secrets — never commit
 .env

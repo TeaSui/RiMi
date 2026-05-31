@@ -177,7 +177,7 @@ void main() {
     });
 
     test('copyWith preserves fields', () {
-      final s = AuthState(
+      const s = AuthState(
         status: AuthStatus.ready,
         userId: 'u1',
         displayName: 'Test',
@@ -190,7 +190,7 @@ void main() {
     });
 
     test('copyWith with clearWorkspace sets activeWorkspaceId to null', () {
-      final s = AuthState(
+      const s = AuthState(
         status: AuthStatus.ready,
         userId: 'u1',
         displayName: 'Test',

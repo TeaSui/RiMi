@@ -50,7 +50,7 @@ class _WorkspaceSwitcherSheetState
       builder: (context, scrollCtrl) {
         return Column(
           children: [
-            SheetHeader('Chuyển cửa hàng'),
+            const SheetHeader('Chuyển cửa hàng'),
             Expanded(
               child: state.isLoading
                   ? const Center(

@@ -56,7 +56,7 @@ class WorkspaceRepository {
         '/workspaces',
         data: {
           'name': name,
-          if (id != null) 'id': id,
+          'id': ?id,
         },
       );
       return _parseWorkspaceTokens(response.data!['data'] as Map<String, dynamic>);

@@ -138,7 +138,7 @@ class _ContentMobileState extends State<ContentMobile> {
             Text('FEATURED DISH', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.muted, letterSpacing: 0.4)),
             const SizedBox(height: 9),
             Stack(children: [
-              FoodSlot(label: 'Bún bò Huế đặc biệt', seed: 1, height: 150, radius: 18, width: double.infinity),
+              const FoodSlot(label: 'Bún bò Huế đặc biệt', seed: 1, height: 150, radius: 18, width: double.infinity),
               Positioned(
                 bottom: 10,
                 right: 10,

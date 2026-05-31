@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../app.dart';
+import '../../core/ai/ai_providers.dart';
 import '../../core/app_icons.dart';
 import '../../core/responsive.dart';
 import '../../data/mock_data.dart';
@@ -142,7 +145,7 @@ class _PostCard extends StatelessWidget {
             decoration: BoxDecoration(color: RM.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: RM.line)),
             clipBehavior: Clip.antiAlias,
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              FoodSlot(label: 'Bún bò Huế', seed: 1, height: 110, radius: 0, width: double.infinity),
+              const FoodSlot(label: 'Bún bò Huế', seed: 1, height: 110, radius: 0, width: double.infinity),
               Padding(
                 padding: const EdgeInsets.all(13),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -181,35 +184,56 @@ class _SuggRow extends StatelessWidget {
   }
 }
 
-class _ChatInput extends StatelessWidget {
-  const _ChatInput({required this.botName});
+class _ChatInput extends ConsumerWidget {
+  const _ChatInput({required this.botName, required this.feature});
   final String botName;
+  final String feature;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-      decoration: const BoxDecoration(color: RM.card, border: Border(top: BorderSide(color: RM.line))),
+      decoration: const BoxDecoration(
+          color: RM.card,
+          border: Border(top: BorderSide(color: RM.line))),
       child: SafeArea(
         top: false,
         child: Row(children: [
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(color: RM.cream, borderRadius: BorderRadius.circular(14)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                  color: RM.cream,
+                  borderRadius: BorderRadius.circular(14)),
               child: Row(children: [
-                Expanded(child: Text('Message $botName…', style: RMType.body(size: 14, color: RM.muted))),
+                Expanded(
+                    child: Text('Message $botName…',
+                        style: RMType.body(size: 14, color: RM.muted))),
                 const RmIcon('mic', size: 19, color: RM.muted),
               ]),
             ),
           ),
           const SizedBox(width: 10),
           GestureDetector(
-            onTap: () => rmToast(context, 'Message sent'),
+            onTap: () {
+              rmToast(context, 'Message sent');
+              // Log AI usage to backend (non-blocking).
+              ref.read(aiChatNotifierProvider.notifier).logUsage(
+                    model: 'gpt-4o',
+                    feature: feature,
+                    tokensIn: 24,
+                    tokensOut: 0,
+                  );
+            },
             child: Container(
               width: 46,
               height: 46,
-              decoration: BoxDecoration(color: RM.brand, borderRadius: BorderRadius.circular(15)),
-              child: const Icon(Icons.send_rounded, size: 20, color: Colors.white),
+              decoration: BoxDecoration(
+                  color: RM.brand,
+                  borderRadius: BorderRadius.circular(15)),
+              child: const Icon(Icons.send_rounded,
+                  size: 20, color: Colors.white),
             ),
           ),
         ]),
@@ -375,7 +399,7 @@ class AiChatPage extends StatelessWidget {
             ]),
           ),
           Expanded(child: _chatThread(context, bot, cardWidth: 300)),
-          _ChatInput(botName: bot.name),
+          _ChatInput(botName: bot.name, feature: bot.id),
         ]),
       ),
     );
@@ -414,7 +438,7 @@ class _AiTabletState extends State<_AiTablet> {
           Expanded(
             child: ListView.separated(
               itemCount: bots.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, i) {
                 final on = i == _sel;
                 return GestureDetector(
@@ -468,7 +492,7 @@ class _AiTabletState extends State<_AiTablet> {
               ]),
             ),
             Expanded(child: _chatThread(context, b, cardWidth: 440)),
-            _ChatInput(botName: b.name),
+            _ChatInput(botName: b.name, feature: b.id),
           ]),
         ),
       ),

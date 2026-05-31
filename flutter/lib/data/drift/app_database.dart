@@ -25,7 +25,8 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        beforeOpen: (details) async {
+        onCreate: (m) async {
+          await m.createAll();
           await customStatement('''
             CREATE INDEX IF NOT EXISTS idx_sync_ops_flush
             ON sync_operations(workspace_id, created_at)

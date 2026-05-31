@@ -14,31 +14,6 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     return into(syncOperations).insert(op);
   }
 
-  Future<void> enqueueForTest({
-    required String opId,
-    required String workspaceId,
-    required String entityType,
-    required String entityId,
-    required String opType,
-    required int createdAt,
-    String? payload,
-    int? delta,
-    int? nextRetryAt,
-  }) {
-    return enqueue(SyncOperationsCompanion.insert(
-      opId: opId,
-      workspaceId: workspaceId,
-      entityType: entityType,
-      entityId: entityId,
-      opType: opType,
-      payload: Value(payload),
-      delta: Value(delta),
-      createdAt: createdAt,
-      updatedAt: createdAt,
-      nextRetryAt: Value(nextRetryAt),
-    ));
-  }
-
   Future<List<SyncOperation>> dequeue(
     String workspaceId, {
     required int nowMs,
@@ -98,10 +73,11 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     required int nowMs,
   }) {
     return (update(syncOperations)..where((tbl) => tbl.opId.equals(opId)))
-        .write(SyncOperationsCompanion(
-      status: const Value('failed'),
-      lastError: Value(error),
-      updatedAt: Value(nowMs),
+        .write(SyncOperationsCompanion.custom(
+      status: const Constant('failed'),
+      lastError: Constant(error),
+      updatedAt: Constant(nowMs),
+      retryCount: syncOperations.retryCount + const Constant(1),
     ));
   }
 

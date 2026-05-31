@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rimi/data/drift/app_database.dart';
 
@@ -14,34 +15,40 @@ void main() {
 
   test('dequeue returns pending eligible ops in FIFO order', () async {
     final dao = db.syncQueueDao;
-    await dao.enqueueForTest(
+    await dao.enqueue(SyncOperationsCompanion.insert(
       opId: 'op-2',
       workspaceId: 'workspace-a',
       entityType: 'inventory_item',
       entityId: 'item-2',
       opType: 'inventory_delta',
-      delta: -2,
+      delta: const Value(-2),
+      payload: const Value(null),
       createdAt: 2000,
-    );
-    await dao.enqueueForTest(
+      updatedAt: 2000,
+    ));
+    await dao.enqueue(SyncOperationsCompanion.insert(
       opId: 'op-1',
       workspaceId: 'workspace-a',
       entityType: 'inventory_item',
       entityId: 'item-1',
       opType: 'inventory_delta',
-      delta: -1,
+      delta: const Value(-1),
+      payload: const Value(null),
       createdAt: 1000,
-    );
-    await dao.enqueueForTest(
+      updatedAt: 1000,
+    ));
+    await dao.enqueue(SyncOperationsCompanion.insert(
       opId: 'op-later',
       workspaceId: 'workspace-a',
       entityType: 'inventory_item',
       entityId: 'item-3',
       opType: 'inventory_delta',
-      delta: -3,
+      delta: const Value(-3),
+      payload: const Value(null),
       createdAt: 500,
-      nextRetryAt: 999999,
-    );
+      updatedAt: 500,
+      nextRetryAt: const Value(999999),
+    ));
 
     final ops = await dao.dequeue('workspace-a', nowMs: 3000, limit: 50);
 
@@ -50,15 +57,17 @@ void main() {
 
   test('crash recovery resets stale inflight ops', () async {
     final dao = db.syncQueueDao;
-    await dao.enqueueForTest(
+    await dao.enqueue(SyncOperationsCompanion.insert(
       opId: 'op-inflight',
       workspaceId: 'workspace-a',
       entityType: 'inventory_item',
       entityId: 'item-1',
       opType: 'inventory_delta',
-      delta: -1,
+      delta: const Value(-1),
+      payload: const Value(null),
       createdAt: 1000,
-    );
+      updatedAt: 1000,
+    ));
     await dao.markInflight(['op-inflight'], nowMs: 10000);
 
     await dao.resetStaleInflight(nowMs: 71001, leaseMs: 60000);
@@ -71,15 +80,17 @@ void main() {
 
   test('expiry sweep fails old pending ops before flush', () async {
     final dao = db.syncQueueDao;
-    await dao.enqueueForTest(
+    await dao.enqueue(SyncOperationsCompanion.insert(
       opId: 'op-old',
       workspaceId: 'workspace-a',
       entityType: 'inventory_item',
       entityId: 'item-1',
       opType: 'inventory_delta',
-      delta: -1,
+      delta: const Value(-1),
+      payload: const Value(null),
       createdAt: 1,
-    );
+      updatedAt: 1,
+    ));
 
     final failed = await dao.expireOldPendingOps(
       nowMs: const Duration(days: 31).inMilliseconds,
@@ -93,5 +104,51 @@ void main() {
       limit: 50,
     );
     expect(ops, isEmpty);
+  });
+
+  test('markFailed sets status to failed and increments retryCount', () async {
+    final dao = db.syncQueueDao;
+    await dao.enqueue(SyncOperationsCompanion.insert(
+      opId: 'op-fail',
+      workspaceId: 'workspace-a',
+      entityType: 'inventory_item',
+      entityId: 'item-1',
+      opType: 'inventory_delta',
+      delta: const Value(-1),
+      payload: const Value(null),
+      createdAt: 1000,
+      updatedAt: 1000,
+    ));
+
+    await dao.markFailed('op-fail', error: 'server_error', nowMs: 2000);
+
+    final rows = await (db.select(db.syncOperations)
+          ..where((tbl) => tbl.opId.equals('op-fail')))
+        .get();
+    expect(rows.single.status, 'failed');
+    expect(rows.single.lastError, 'server_error');
+    expect(rows.single.retryCount, 1);
+  });
+
+  test('deleteDone removes the row', () async {
+    final dao = db.syncQueueDao;
+    await dao.enqueue(SyncOperationsCompanion.insert(
+      opId: 'op-done',
+      workspaceId: 'workspace-a',
+      entityType: 'inventory_item',
+      entityId: 'item-1',
+      opType: 'inventory_delta',
+      delta: const Value(-1),
+      payload: const Value(null),
+      createdAt: 1000,
+      updatedAt: 1000,
+    ));
+
+    await dao.deleteDone('op-done');
+
+    final rows = await (db.select(db.syncOperations)
+          ..where((tbl) => tbl.opId.equals('op-done')))
+        .get();
+    expect(rows, isEmpty);
   });
 }

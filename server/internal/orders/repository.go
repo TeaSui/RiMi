@@ -164,13 +164,15 @@ func (r *Repository) AdvanceStatus(ctx context.Context, id, workspaceID, newStat
 
 	var o Order
 	var fromStatus string
+	// Use a CTE to capture the old status before the UPDATE applies.
 	err := tx.QueryRow(ctx, `
+		WITH old AS (SELECT status FROM orders WHERE id = $1 AND workspace_id = $2)
 		UPDATE orders
 		SET status = $3, updated_at = now()
 		WHERE id = $1 AND workspace_id = $2
 		RETURNING id::text, workspace_id::text, status, channel, customer_name, note,
 		          total_amount::text, created_at, updated_at,
-		          (SELECT status FROM orders WHERE id = $1 AND workspace_id = $2)
+		          (SELECT status FROM old)
 	`, id, workspaceID, newStatus).Scan(
 		&o.ID, &o.WorkspaceID, &o.Status, &o.Channel,
 		&o.CustomerName, &o.Note, &o.TotalAmount,
@@ -183,11 +185,11 @@ func (r *Repository) AdvanceStatus(ctx context.Context, id, workspaceID, newStat
 		return nil, err
 	}
 
-	// Insert status event.
+	// Insert status event. The `status` column mirrors `to_status` (required NOT NULL).
 	eventID := newUUID()
 	_, err = tx.Exec(ctx, `
-		INSERT INTO order_status_events (id, workspace_id, order_id, from_status, to_status)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO order_status_events (id, workspace_id, order_id, from_status, to_status, status)
+		VALUES ($1, $2, $3, $4, $5, $5)
 	`, eventID, workspaceID, id, fromStatus, newStatus)
 	if err != nil {
 		return nil, err

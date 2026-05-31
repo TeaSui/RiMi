@@ -198,7 +198,7 @@ For each entity group within the batch:
 1. **Lock per op (idempotency):** sort op IDs lexicographically before acquiring locks to prevent advisory-lock deadlocks when two concurrent batches contain overlapping ops in different order. Then `pg_advisory_xact_lock(hashtext(workspace_id || ':' || op_id))` for every op in sorted order — serializes concurrent same-op requests before any ledger read
 2. Check `sync_applied_ops` for each `(workspace_id, op_id)` — partition into cached and fresh
 3. If all ops are cached: return cached results, no DB write
-4. **Lock entity:** `pg_advisory_xact_lock(hashtext(entity_id))` — prevents concurrent batches from two devices racing on the same inventory row
+4. **Lock entity:** `pg_advisory_xact_lock(hashtext(workspace_id || ':' || entity_id))` — workspace-scoped key per SYNC-SEC-10; prevents concurrent batches from two devices racing on the same inventory row
 5. Sum deltas from fresh ops only; apply the aggregated delta
 6. Insert results for fresh ops into `sync_applied_ops`
 7. Commit

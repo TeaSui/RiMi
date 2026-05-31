@@ -186,7 +186,7 @@ CREATE POLICY sync_applied_ops_workspace ON sync_applied_ops
 
 `sync_applied_ops` follows the same workspace-scoped RLS conventions as all other Phase 1 workspace tables (`server/migrations/000002_rls_policies.up.sql`): `workspace_id` column, index on `workspace_id`, `ENABLE` + `FORCE ROW LEVEL SECURITY`, `app.is_workspace_member(workspace_id)` policy via the existing `SECURITY DEFINER` helper (fail-closed on unset GUC). Backend accesses it as `rimi_app`, not as a privileged role. Policy goes in migration 000003 alongside the table DDL.
 
-**TTL cleanup:** background job (or pg_cron) deletes rows older than 90 days.
+**TTL cleanup:** background job (or pg_cron) deletes rows older than 90 days. Because `sync_applied_ops` has `FORCE ROW LEVEL SECURITY` and `app.is_workspace_member` requires `rimi.workspace_id` to be set, the cleanup job must not run as `rimi_app`. Two acceptable patterns: (a) run as `rimi_migrator` (table owner, bypasses RLS); (b) a tightly scoped `SECURITY DEFINER` cleanup function owned by `rimi_migrator` that executes `DELETE FROM sync_applied_ops WHERE applied_at < now() - interval '90 days'` with no GUC requirement. Either approach avoids granting excess privilege to `rimi_app`.
 
 **Client expiry rule (binding constraint):** before every flush (startup, timer, reconnect, foreground resume), ops with `created_at < now() - 30 days` are auto-failed (`status = 'failed'`, `last_error = 'op_expired'`). The app surfaces a data-check prompt to the user. This sweep runs at the flush callsite, not only on startup, so the invariant is local and obvious: no 30+ day op can ever enter a batch. The 90-day server ledger always covers any possible retry; the dangerous double-apply scenario cannot occur.
 
@@ -195,7 +195,7 @@ CREATE POLICY sync_applied_ops_workspace ON sync_applied_ops
 Fresh `inventory_delta` ops that share an `entity_id` must be aggregated and applied in one transaction; "per op transaction" would break the delta sum. The unit of atomicity is the entity group (all fresh ops for one `entity_id`), not the individual op.
 
 For each entity group within the batch:
-1. **Lock per op (idempotency):** `pg_advisory_xact_lock(hashtext(workspace_id || ':' || op_id))` for every op in the group — serializes concurrent same-op requests before any ledger read
+1. **Lock per op (idempotency):** sort op IDs lexicographically before acquiring locks to prevent advisory-lock deadlocks when two concurrent batches contain overlapping ops in different order. Then `pg_advisory_xact_lock(hashtext(workspace_id || ':' || op_id))` for every op in sorted order — serializes concurrent same-op requests before any ledger read
 2. Check `sync_applied_ops` for each `(workspace_id, op_id)` — partition into cached and fresh
 3. If all ops are cached: return cached results, no DB write
 4. **Lock entity:** `pg_advisory_xact_lock(hashtext(entity_id))` — prevents concurrent batches from two devices racing on the same inventory row

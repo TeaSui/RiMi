@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"nhooyr.io/websocket"
 
 	"github.com/rimi/server/internal/middleware"
@@ -91,6 +92,28 @@ func (h *Handler) Pull(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = parsed
 	}
+
+	// SYNC-SEC-07: cursor param validation.
+	// after_updated_at must be unix milliseconds (int64); after_id must be a UUID.
+	// Both are available for Phase 3 PullProducts wiring; not consumed yet.
+	var afterUpdatedAtMs int64
+	if raw := r.URL.Query().Get("after_updated_at"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "Invalid after_updated_at: must be unix milliseconds.", nil)
+			return
+		}
+		afterUpdatedAtMs = parsed
+	}
+	afterID := r.URL.Query().Get("after_id")
+	if afterID != "" {
+		if _, err := uuid.Parse(afterID); err != nil {
+			middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "Invalid after_id: must be a UUID.", nil)
+			return
+		}
+	}
+	_ = afterUpdatedAtMs // used in Phase 3 PullProducts
+	_ = afterID          // used in Phase 3 PullProducts
 
 	// Pull query fully wired in Task 10 verification; stub response for Phase 2 handler wire-up.
 	middleware.WriteJSON(w, http.StatusOK, map[string]any{

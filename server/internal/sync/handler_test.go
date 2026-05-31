@@ -126,6 +126,38 @@ func TestPullRejectsMissingClaims(t *testing.T) {
 	}
 }
 
+// TestPullRejectsInvalidCursorAfterID verifies 400 when after_id is not a valid UUID (SYNC-SEC-07).
+func TestPullRejectsInvalidCursorAfterID(t *testing.T) {
+	h := NewHandler(NewService(newFakeRepo(0)))
+	authed, mint := makeAuthedHandler(t, http.HandlerFunc(h.Pull))
+	token := mint("ws-test")
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/sync/pull?entity=product&after_id=not-a-uuid", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	authed.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w.Code)
+	}
+}
+
+// TestPullRejectsInvalidCursorAfterUpdatedAt verifies 400 when after_updated_at is not a valid int64 (SYNC-SEC-07).
+func TestPullRejectsInvalidCursorAfterUpdatedAt(t *testing.T) {
+	h := NewHandler(NewService(newFakeRepo(0)))
+	authed, mint := makeAuthedHandler(t, http.HandlerFunc(h.Pull))
+	token := mint("ws-test")
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/sync/pull?entity=product&after_updated_at=not-a-number", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	authed.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w.Code)
+	}
+}
+
 // TestBatchRejectsOversizedBatch verifies 400 when more than 50 ops are submitted.
 func TestBatchRejectsOversizedBatch(t *testing.T) {
 	h := NewHandler(NewService(newFakeRepo(0)))

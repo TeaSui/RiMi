@@ -1,0 +1,482 @@
+import 'package:flutter/material.dart';
+import '../../core/app_icons.dart';
+import '../../data/mock_data.dart';
+import '../../theme/app_theme.dart';
+import '../../theme/tokens.dart';
+import '../../widgets/forms.dart';
+import '../../widgets/primitives.dart';
+
+String _stockLabel(Product p) => p.stock == 0 ? 'Sold out' : '${p.stock} left';
+
+// ── Add-dish composer ────────────────────────────────────────────────
+
+Future<bool?> showAddDishComposer(BuildContext context) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: RM.cream,
+    builder: (_) => const _AddDishComposer(),
+  );
+}
+
+class _AddDishComposer extends StatefulWidget {
+  const _AddDishComposer();
+  @override
+  State<_AddDishComposer> createState() => _AddDishComposerState();
+}
+
+class _AddDishComposerState extends State<_AddDishComposer> {
+  final _name = TextEditingController();
+  final _price = TextEditingController();
+  String _cat = 'Mains';
+
+  bool get _valid => _name.text.trim().isNotEmpty && (int.tryParse(_price.text) ?? 0) > 0;
+
+  void _create() {
+    ProductStore.instance.add(
+      name: _name.text.trim(),
+      cat: _cat,
+      price: int.parse(_price.text),
+      seed: DateTime.now().microsecond % 6,
+    );
+    Navigator.of(context).pop(true);
+    rmToast(context, 'Dish added to menu');
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _price.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SheetHeader('Add dish'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+            child: Column(children: [
+              RmTextField(label: 'DISH NAME', controller: _name, hint: 'e.g. Phở bò tái', autofocus: true, onChanged: (_) => setState(() {})),
+              const SizedBox(height: 14),
+              RmTextField(label: 'PRICE (₫)', controller: _price, hint: '55000', keyboard: TextInputType.number, onChanged: (_) => setState(() {})),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('CATEGORY', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.muted)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final c in productCats.where((c) => c != 'All'))
+                    PillChip(label: c, active: c == _cat, activeColor: RM.brand, onTap: () => setState(() => _cat = c)),
+                ],
+              ),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: SheetSubmit(label: 'Add to menu', enabled: _valid, onPressed: _create),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Low-stock banner ─────────────────────────────────────────────────
+
+class _LowStockBanner extends StatelessWidget {
+  const _LowStockBanner({required this.count, this.compact = false});
+  final int count;
+  final bool compact;
+  @override
+  Widget build(BuildContext context) {
+    if (compact) {
+      return GestureDetector(
+        onTap: () => rmToast(context, 'Reviewing low stock'),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: RM.goldSoft, borderRadius: BorderRadius.circular(14)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const RmIcon('box', size: 22, color: RM.gold),
+            const SizedBox(height: 8),
+            Text('$count low on stock', style: RMType.body(size: 13.5, weight: FontWeight.w700)),
+            Text('Review & reorder', style: RMType.body(size: 12, color: RM.ink70)),
+          ]),
+        ),
+      );
+    }
+    return GestureDetector(
+      onTap: () => rmToast(context, 'Reviewing low stock'),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: RM.goldSoft, borderRadius: BorderRadius.circular(14)),
+        child: Row(children: [
+          const RmIcon('box', size: 22, color: RM.gold),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('$count dishes need restocking', style: RMType.body(size: 13.5, weight: FontWeight.w700)),
+              Text('Tap to review & reorder ingredients', style: RMType.body(size: 12, color: RM.ink70)),
+            ]),
+          ),
+          const RmIcon('chevR', size: 18, color: RM.gold),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── MOBILE ───────────────────────────────────────────────────────────
+
+class ProductsMobile extends StatefulWidget {
+  const ProductsMobile({super.key});
+  @override
+  State<ProductsMobile> createState() => _ProductsMobileState();
+}
+
+class _ProductsMobileState extends State<ProductsMobile> {
+  String _cat = 'All';
+  bool _searchOpen = false;
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: ProductStore.instance,
+      builder: (context, _) {
+        final products = ProductStore.instance.all;
+        final q = _search.text.trim().toLowerCase();
+        final list = products.where((p) => (_cat == 'All' || p.cat == _cat) && (q.isEmpty || p.name.toLowerCase().contains(q))).toList();
+        return Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: Row(children: [
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Menu & Stock', style: RMType.display(size: 24)),
+                  Text('${products.length} dishes · ${ProductStore.instance.lowCount} low on stock', style: RMType.body(size: 12.5, color: RM.muted)),
+                ]),
+              ),
+              _SquareBtn(icon: 'search', active: _searchOpen, onTap: () => setState(() { _searchOpen = !_searchOpen; _search.clear(); })),
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                onPressed: () => showAddDishComposer(context).then((c) { if (c == true) setState(() => _cat = 'All'); }),
+                style: FilledButton.styleFrom(backgroundColor: RM.brand, padding: const EdgeInsets.symmetric(horizontal: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
+                icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                label: Text('Add', style: RMType.body(size: 13.5, weight: FontWeight.w700, color: Colors.white)),
+              ),
+            ]),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 100),
+              children: [
+                if (_searchOpen)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: _SearchInline(controller: _search, hint: 'Search dishes…', onChanged: () => setState(() {}), onClose: () => setState(() { _searchOpen = false; _search.clear(); })),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(children: [
+                      for (final c in productCats) ...[
+                        PillChip(label: c, active: c == _cat, onTap: () => setState(() => _cat = c)),
+                        const SizedBox(width: 8),
+                      ],
+                    ]),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                  child: _LowStockBanner(count: ProductStore.instance.lowCount),
+                ),
+                if (list.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(child: Text('No dishes found', style: RMType.body(size: 14, color: RM.muted))),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(children: [
+                      for (int i = 0; i < list.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 10),
+                        _ProductRow(p: list[i]),
+                      ],
+                    ]),
+                  ),
+              ],
+            ),
+          ),
+        ]);
+      },
+    );
+  }
+}
+
+class _ProductRow extends StatelessWidget {
+  const _ProductRow({required this.p});
+  final Product p;
+  @override
+  Widget build(BuildContext context) {
+    final s = stockStyle[p.status]!;
+    return Opacity(
+      opacity: p.on ? 1 : 0.62,
+      child: SoftCard(
+        onTap: () => rmToast(context, 'Edit · ${p.name}'),
+        child: Row(children: [
+          FoodSlot(seed: p.seed, width: 56, height: 56, radius: 13),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: RMType.body(size: 14.5, weight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Row(children: [
+                Text(vnd(p.price), style: RMType.body(size: 14, weight: FontWeight.w800, color: RM.brandDeep)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: s.bg, borderRadius: BorderRadius.circular(7)),
+                  child: Text(_stockLabel(p), style: RMType.body(size: 11.5, weight: FontWeight.w700, color: s.color)),
+                ),
+              ]),
+              const SizedBox(height: 3),
+              Text(p.on ? '${p.sold} sold today' : 'Hidden from menu', style: RMType.body(size: 11.5, color: RM.muted)),
+            ]),
+          ),
+          const SizedBox(width: 8),
+          RmToggle(value: p.on, onTap: () => ProductStore.instance.toggle(p.id)),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── TABLET ───────────────────────────────────────────────────────────
+
+class ProductsTablet extends StatefulWidget {
+  const ProductsTablet({super.key});
+  @override
+  State<ProductsTablet> createState() => _ProductsTabletState();
+}
+
+class _ProductsTabletState extends State<ProductsTablet> {
+  String _cat = 'All';
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final portrait = MediaQuery.sizeOf(context).height > MediaQuery.sizeOf(context).width;
+    return ListenableBuilder(
+      listenable: ProductStore.instance,
+      builder: (context, _) {
+        final products = ProductStore.instance.all;
+        final q = _search.text.trim().toLowerCase();
+        final list = products.where((p) => (_cat == 'All' || p.cat == _cat) && (q.isEmpty || p.name.toLowerCase().contains(q))).toList();
+        return Container(
+          color: RM.cream,
+          child: Row(children: [
+            // category sidebar
+            Container(
+              width: portrait ? 184 : 210,
+              decoration: const BoxDecoration(border: Border(right: BorderSide(color: RM.line))),
+              padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+              child: ListView(children: [
+                Text('CATEGORIES', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.muted, letterSpacing: 0.4)),
+                const SizedBox(height: 12),
+                for (final c in productCats)
+                  GestureDetector(
+                    onTap: () => setState(() => _cat = c),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+                      decoration: BoxDecoration(color: c == _cat ? RM.brandSoft : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+                      child: Row(children: [
+                        Expanded(child: Text(c == 'All' ? 'All dishes' : c, style: RMType.body(size: 14, weight: c == _cat ? FontWeight.w700 : FontWeight.w600, color: c == _cat ? RM.brandDeep : RM.ink70))),
+                        Text('${c == 'All' ? products.length : products.where((p) => p.cat == c).length}', style: RMType.body(size: 12, weight: FontWeight.w700, color: c == _cat ? RM.brand : RM.faint)),
+                      ]),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                _LowStockBanner(count: ProductStore.instance.lowCount, compact: true),
+              ]),
+            ),
+            // grid
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(26, 22, 26, 26),
+                children: [
+                  Row(children: [
+                    Expanded(child: Text('Menu & Inventory', style: RMType.display(size: 26))),
+                    SizedBox(
+                      width: portrait ? 200 : 260,
+                      child: _SearchInline(controller: _search, hint: 'Search dishes…', plain: true, onChanged: () => setState(() {}), onClose: () {}),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: () => showAddDishComposer(context).then((c) { if (c == true) setState(() => _cat = 'All'); }),
+                      style: FilledButton.styleFrom(backgroundColor: RM.brand, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                      label: Text('Add dish', style: RMType.body(size: 14, weight: FontWeight.w700, color: Colors.white)),
+                    ),
+                  ]),
+                  const SizedBox(height: 18),
+                  if (list.isEmpty)
+                    Padding(padding: const EdgeInsets.symmetric(vertical: 60), child: Center(child: Text('No dishes found', style: RMType.body(size: 15, color: RM.muted))))
+                  else
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: portrait ? 2 : 3,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 0.92,
+                      children: [for (final p in list) _ProductCardTablet(p: p)],
+                    ),
+                ],
+              ),
+            ),
+          ]),
+        );
+      },
+    );
+  }
+}
+
+class _ProductCardTablet extends StatelessWidget {
+  const _ProductCardTablet({required this.p});
+  final Product p;
+  @override
+  Widget build(BuildContext context) {
+    final s = stockStyle[p.status]!;
+    return Opacity(
+      opacity: p.on ? 1 : 0.62,
+      child: GestureDetector(
+        onTap: () => rmToast(context, 'Edit · ${p.name}'),
+        child: Container(
+          decoration: BoxDecoration(
+            color: RM.card,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: RM.line),
+            boxShadow: [BoxShadow(color: RM.ink.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Stack(children: [
+              FoodSlot(seed: p.seed, height: 120, radius: 0, width: double.infinity),
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                  child: Text(_stockLabel(p), style: RMType.body(size: 11, weight: FontWeight.w700, color: s.color)),
+                ),
+              ),
+              Positioned(top: 8, right: 8, child: RmToggle(value: p.on, onTap: () => ProductStore.instance.toggle(p.id))),
+            ]),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: RMType.body(size: 15, weight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                Row(children: [
+                  Text(vnd(p.price), style: RMType.display(size: 18, color: RM.brandDeep)),
+                  const Spacer(),
+                  Text('${p.sold} sold', style: RMType.body(size: 12, weight: FontWeight.w600, color: RM.muted)),
+                ]),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ── small helpers ────────────────────────────────────────────────────
+
+class _SquareBtn extends StatelessWidget {
+  const _SquareBtn({required this.icon, required this.active, required this.onTap});
+  final String icon;
+  final bool active;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: active ? RM.brandSoft : RM.card,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: active ? RM.brand : RM.line),
+        ),
+        child: Icon(AppIcons.of(icon), size: 19, color: active ? RM.brand : RM.ink),
+      ),
+    );
+  }
+}
+
+class _SearchInline extends StatelessWidget {
+  const _SearchInline({required this.controller, required this.hint, required this.onChanged, required this.onClose, this.plain = false});
+  final TextEditingController controller;
+  final String hint;
+  final VoidCallback onChanged;
+  final VoidCallback onClose;
+  final bool plain;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 2),
+      decoration: BoxDecoration(
+        color: RM.card,
+        borderRadius: BorderRadius.circular(plain ? 12 : 13),
+        border: Border.all(color: plain ? RM.line : RM.brand, width: plain ? 1 : 1.5),
+        boxShadow: plain ? null : [BoxShadow(color: RM.brandSoft, blurRadius: 0, spreadRadius: 3)],
+      ),
+      child: Row(children: [
+        RmIcon('search', size: 18, color: plain ? RM.muted : RM.brand),
+        const SizedBox(width: 9),
+        Expanded(
+          child: TextField(
+            controller: controller,
+            autofocus: !plain,
+            onChanged: (_) => onChanged(),
+            style: RMType.body(size: 13.5),
+            decoration: InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              hintText: hint,
+              hintStyle: RMType.body(size: 13.5, color: RM.faint),
+            ),
+          ),
+        ),
+        if (!plain) GestureDetector(onTap: onClose, child: const RmIcon('close', size: 18, color: RM.muted)),
+      ]),
+    );
+  }
+}

@@ -1926,15 +1926,704 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   }
 }
 
+class $OrdersTable extends Orders with TableInfo<$OrdersTable, Order> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OrdersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<String> workspaceId = GeneratedColumn<String>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _channelMeta = const VerificationMeta(
+    'channel',
+  );
+  @override
+  late final GeneratedColumn<String> channel = GeneratedColumn<String>(
+    'channel',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _customerNameMeta = const VerificationMeta(
+    'customerName',
+  );
+  @override
+  late final GeneratedColumn<String> customerName = GeneratedColumn<String>(
+    'customer_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _itemsSummaryMeta = const VerificationMeta(
+    'itemsSummary',
+  );
+  @override
+  late final GeneratedColumn<String> itemsSummary = GeneratedColumn<String>(
+    'items_summary',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _totalAmountMeta = const VerificationMeta(
+    'totalAmount',
+  );
+  @override
+  late final GeneratedColumn<int> totalAmount = GeneratedColumn<int>(
+    'total_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isLateMeta = const VerificationMeta('isLate');
+  @override
+  late final GeneratedColumn<bool> isLate = GeneratedColumn<bool>(
+    'is_late',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_late" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    status,
+    channel,
+    customerName,
+    itemsSummary,
+    totalAmount,
+    note,
+    isLate,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'orders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Order> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('channel')) {
+      context.handle(
+        _channelMeta,
+        channel.isAcceptableOrUnknown(data['channel']!, _channelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_channelMeta);
+    }
+    if (data.containsKey('customer_name')) {
+      context.handle(
+        _customerNameMeta,
+        customerName.isAcceptableOrUnknown(
+          data['customer_name']!,
+          _customerNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('items_summary')) {
+      context.handle(
+        _itemsSummaryMeta,
+        itemsSummary.isAcceptableOrUnknown(
+          data['items_summary']!,
+          _itemsSummaryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_amount')) {
+      context.handle(
+        _totalAmountMeta,
+        totalAmount.isAcceptableOrUnknown(
+          data['total_amount']!,
+          _totalAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('is_late')) {
+      context.handle(
+        _isLateMeta,
+        isLate.isAcceptableOrUnknown(data['is_late']!, _isLateMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Order map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Order(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      channel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}channel'],
+      )!,
+      customerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}customer_name'],
+      ),
+      itemsSummary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}items_summary'],
+      )!,
+      totalAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_amount'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      isLate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_late'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $OrdersTable createAlias(String alias) {
+    return $OrdersTable(attachedDatabase, alias);
+  }
+}
+
+class Order extends DataClass implements Insertable<Order> {
+  /// UUID primary key — matches server orders.id.
+  final String id;
+
+  /// Workspace this order belongs to.
+  final String workspaceId;
+
+  /// Order status: new | cooking | ready | delivering | done.
+  final String status;
+
+  /// Order channel: online | app | phone | walkin.
+  final String channel;
+
+  /// Optional customer name.
+  final String? customerName;
+
+  /// Display string for line items (e.g. "Bún bò ×2, Chả giò ×1").
+  final String itemsSummary;
+
+  /// Total order amount in VND (integer).
+  final int totalAmount;
+
+  /// Optional note for the kitchen.
+  final String? note;
+
+  /// Whether the order is running late.
+  final bool isLate;
+
+  /// Creation time as Unix milliseconds.
+  final int createdAt;
+
+  /// Last update time as Unix milliseconds.
+  final int updatedAt;
+  const Order({
+    required this.id,
+    required this.workspaceId,
+    required this.status,
+    required this.channel,
+    this.customerName,
+    required this.itemsSummary,
+    required this.totalAmount,
+    this.note,
+    required this.isLate,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['workspace_id'] = Variable<String>(workspaceId);
+    map['status'] = Variable<String>(status);
+    map['channel'] = Variable<String>(channel);
+    if (!nullToAbsent || customerName != null) {
+      map['customer_name'] = Variable<String>(customerName);
+    }
+    map['items_summary'] = Variable<String>(itemsSummary);
+    map['total_amount'] = Variable<int>(totalAmount);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['is_late'] = Variable<bool>(isLate);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  OrdersCompanion toCompanion(bool nullToAbsent) {
+    return OrdersCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      status: Value(status),
+      channel: Value(channel),
+      customerName: customerName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customerName),
+      itemsSummary: Value(itemsSummary),
+      totalAmount: Value(totalAmount),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      isLate: Value(isLate),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Order.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Order(
+      id: serializer.fromJson<String>(json['id']),
+      workspaceId: serializer.fromJson<String>(json['workspaceId']),
+      status: serializer.fromJson<String>(json['status']),
+      channel: serializer.fromJson<String>(json['channel']),
+      customerName: serializer.fromJson<String?>(json['customerName']),
+      itemsSummary: serializer.fromJson<String>(json['itemsSummary']),
+      totalAmount: serializer.fromJson<int>(json['totalAmount']),
+      note: serializer.fromJson<String?>(json['note']),
+      isLate: serializer.fromJson<bool>(json['isLate']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'workspaceId': serializer.toJson<String>(workspaceId),
+      'status': serializer.toJson<String>(status),
+      'channel': serializer.toJson<String>(channel),
+      'customerName': serializer.toJson<String?>(customerName),
+      'itemsSummary': serializer.toJson<String>(itemsSummary),
+      'totalAmount': serializer.toJson<int>(totalAmount),
+      'note': serializer.toJson<String?>(note),
+      'isLate': serializer.toJson<bool>(isLate),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  Order copyWith({
+    String? id,
+    String? workspaceId,
+    String? status,
+    String? channel,
+    Value<String?> customerName = const Value.absent(),
+    String? itemsSummary,
+    int? totalAmount,
+    Value<String?> note = const Value.absent(),
+    bool? isLate,
+    int? createdAt,
+    int? updatedAt,
+  }) => Order(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    status: status ?? this.status,
+    channel: channel ?? this.channel,
+    customerName: customerName.present ? customerName.value : this.customerName,
+    itemsSummary: itemsSummary ?? this.itemsSummary,
+    totalAmount: totalAmount ?? this.totalAmount,
+    note: note.present ? note.value : this.note,
+    isLate: isLate ?? this.isLate,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  Order copyWithCompanion(OrdersCompanion data) {
+    return Order(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      status: data.status.present ? data.status.value : this.status,
+      channel: data.channel.present ? data.channel.value : this.channel,
+      customerName: data.customerName.present
+          ? data.customerName.value
+          : this.customerName,
+      itemsSummary: data.itemsSummary.present
+          ? data.itemsSummary.value
+          : this.itemsSummary,
+      totalAmount: data.totalAmount.present
+          ? data.totalAmount.value
+          : this.totalAmount,
+      note: data.note.present ? data.note.value : this.note,
+      isLate: data.isLate.present ? data.isLate.value : this.isLate,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Order(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('status: $status, ')
+          ..write('channel: $channel, ')
+          ..write('customerName: $customerName, ')
+          ..write('itemsSummary: $itemsSummary, ')
+          ..write('totalAmount: $totalAmount, ')
+          ..write('note: $note, ')
+          ..write('isLate: $isLate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    status,
+    channel,
+    customerName,
+    itemsSummary,
+    totalAmount,
+    note,
+    isLate,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Order &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.status == this.status &&
+          other.channel == this.channel &&
+          other.customerName == this.customerName &&
+          other.itemsSummary == this.itemsSummary &&
+          other.totalAmount == this.totalAmount &&
+          other.note == this.note &&
+          other.isLate == this.isLate &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class OrdersCompanion extends UpdateCompanion<Order> {
+  final Value<String> id;
+  final Value<String> workspaceId;
+  final Value<String> status;
+  final Value<String> channel;
+  final Value<String?> customerName;
+  final Value<String> itemsSummary;
+  final Value<int> totalAmount;
+  final Value<String?> note;
+  final Value<bool> isLate;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const OrdersCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.channel = const Value.absent(),
+    this.customerName = const Value.absent(),
+    this.itemsSummary = const Value.absent(),
+    this.totalAmount = const Value.absent(),
+    this.note = const Value.absent(),
+    this.isLate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  OrdersCompanion.insert({
+    required String id,
+    required String workspaceId,
+    required String status,
+    required String channel,
+    this.customerName = const Value.absent(),
+    this.itemsSummary = const Value.absent(),
+    this.totalAmount = const Value.absent(),
+    this.note = const Value.absent(),
+    this.isLate = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       workspaceId = Value(workspaceId),
+       status = Value(status),
+       channel = Value(channel),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<Order> custom({
+    Expression<String>? id,
+    Expression<String>? workspaceId,
+    Expression<String>? status,
+    Expression<String>? channel,
+    Expression<String>? customerName,
+    Expression<String>? itemsSummary,
+    Expression<int>? totalAmount,
+    Expression<String>? note,
+    Expression<bool>? isLate,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (status != null) 'status': status,
+      if (channel != null) 'channel': channel,
+      if (customerName != null) 'customer_name': customerName,
+      if (itemsSummary != null) 'items_summary': itemsSummary,
+      if (totalAmount != null) 'total_amount': totalAmount,
+      if (note != null) 'note': note,
+      if (isLate != null) 'is_late': isLate,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  OrdersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? workspaceId,
+    Value<String>? status,
+    Value<String>? channel,
+    Value<String?>? customerName,
+    Value<String>? itemsSummary,
+    Value<int>? totalAmount,
+    Value<String?>? note,
+    Value<bool>? isLate,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return OrdersCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      status: status ?? this.status,
+      channel: channel ?? this.channel,
+      customerName: customerName ?? this.customerName,
+      itemsSummary: itemsSummary ?? this.itemsSummary,
+      totalAmount: totalAmount ?? this.totalAmount,
+      note: note ?? this.note,
+      isLate: isLate ?? this.isLate,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<String>(workspaceId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (channel.present) {
+      map['channel'] = Variable<String>(channel.value);
+    }
+    if (customerName.present) {
+      map['customer_name'] = Variable<String>(customerName.value);
+    }
+    if (itemsSummary.present) {
+      map['items_summary'] = Variable<String>(itemsSummary.value);
+    }
+    if (totalAmount.present) {
+      map['total_amount'] = Variable<int>(totalAmount.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (isLate.present) {
+      map['is_late'] = Variable<bool>(isLate.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OrdersCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('status: $status, ')
+          ..write('channel: $channel, ')
+          ..write('customerName: $customerName, ')
+          ..write('itemsSummary: $itemsSummary, ')
+          ..write('totalAmount: $totalAmount, ')
+          ..write('note: $note, ')
+          ..write('isLate: $isLate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
   late final $SyncMetaTable syncMeta = $SyncMetaTable(this);
   late final $ProductsTable products = $ProductsTable(this);
+  late final $OrdersTable orders = $OrdersTable(this);
   late final SyncQueueDao syncQueueDao = SyncQueueDao(this as AppDatabase);
   late final SyncMetaDao syncMetaDao = SyncMetaDao(this as AppDatabase);
   late final ProductsDao productsDao = ProductsDao(this as AppDatabase);
+  late final OrdersDao ordersDao = OrdersDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1943,6 +2632,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncOperations,
     syncMeta,
     products,
+    orders,
   ];
 }
 
@@ -2868,6 +3558,322 @@ typedef $$ProductsTableProcessedTableManager =
       Product,
       PrefetchHooks Function()
     >;
+typedef $$OrdersTableCreateCompanionBuilder =
+    OrdersCompanion Function({
+      required String id,
+      required String workspaceId,
+      required String status,
+      required String channel,
+      Value<String?> customerName,
+      Value<String> itemsSummary,
+      Value<int> totalAmount,
+      Value<String?> note,
+      Value<bool> isLate,
+      required int createdAt,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$OrdersTableUpdateCompanionBuilder =
+    OrdersCompanion Function({
+      Value<String> id,
+      Value<String> workspaceId,
+      Value<String> status,
+      Value<String> channel,
+      Value<String?> customerName,
+      Value<String> itemsSummary,
+      Value<int> totalAmount,
+      Value<String?> note,
+      Value<bool> isLate,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$OrdersTableFilterComposer
+    extends Composer<_$AppDatabase, $OrdersTable> {
+  $$OrdersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get workspaceId => $composableBuilder(
+    column: $table.workspaceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get channel => $composableBuilder(
+    column: $table.channel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customerName => $composableBuilder(
+    column: $table.customerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemsSummary => $composableBuilder(
+    column: $table.itemsSummary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalAmount => $composableBuilder(
+    column: $table.totalAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isLate => $composableBuilder(
+    column: $table.isLate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$OrdersTableOrderingComposer
+    extends Composer<_$AppDatabase, $OrdersTable> {
+  $$OrdersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get workspaceId => $composableBuilder(
+    column: $table.workspaceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get channel => $composableBuilder(
+    column: $table.channel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customerName => $composableBuilder(
+    column: $table.customerName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemsSummary => $composableBuilder(
+    column: $table.itemsSummary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalAmount => $composableBuilder(
+    column: $table.totalAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isLate => $composableBuilder(
+    column: $table.isLate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$OrdersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $OrdersTable> {
+  $$OrdersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get workspaceId => $composableBuilder(
+    column: $table.workspaceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get channel =>
+      $composableBuilder(column: $table.channel, builder: (column) => column);
+
+  GeneratedColumn<String> get customerName => $composableBuilder(
+    column: $table.customerName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get itemsSummary => $composableBuilder(
+    column: $table.itemsSummary,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalAmount => $composableBuilder(
+    column: $table.totalAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<bool> get isLate =>
+      $composableBuilder(column: $table.isLate, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$OrdersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $OrdersTable,
+          Order,
+          $$OrdersTableFilterComposer,
+          $$OrdersTableOrderingComposer,
+          $$OrdersTableAnnotationComposer,
+          $$OrdersTableCreateCompanionBuilder,
+          $$OrdersTableUpdateCompanionBuilder,
+          (Order, BaseReferences<_$AppDatabase, $OrdersTable, Order>),
+          Order,
+          PrefetchHooks Function()
+        > {
+  $$OrdersTableTableManager(_$AppDatabase db, $OrdersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OrdersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$OrdersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$OrdersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> workspaceId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> channel = const Value.absent(),
+                Value<String?> customerName = const Value.absent(),
+                Value<String> itemsSummary = const Value.absent(),
+                Value<int> totalAmount = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<bool> isLate = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OrdersCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                status: status,
+                channel: channel,
+                customerName: customerName,
+                itemsSummary: itemsSummary,
+                totalAmount: totalAmount,
+                note: note,
+                isLate: isLate,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String workspaceId,
+                required String status,
+                required String channel,
+                Value<String?> customerName = const Value.absent(),
+                Value<String> itemsSummary = const Value.absent(),
+                Value<int> totalAmount = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<bool> isLate = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => OrdersCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                status: status,
+                channel: channel,
+                customerName: customerName,
+                itemsSummary: itemsSummary,
+                totalAmount: totalAmount,
+                note: note,
+                isLate: isLate,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$OrdersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $OrdersTable,
+      Order,
+      $$OrdersTableFilterComposer,
+      $$OrdersTableOrderingComposer,
+      $$OrdersTableAnnotationComposer,
+      $$OrdersTableCreateCompanionBuilder,
+      $$OrdersTableUpdateCompanionBuilder,
+      (Order, BaseReferences<_$AppDatabase, $OrdersTable, Order>),
+      Order,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2878,4 +3884,6 @@ class $AppDatabaseManager {
       $$SyncMetaTableTableManager(_db, _db.syncMeta);
   $$ProductsTableTableManager get products =>
       $$ProductsTableTableManager(_db, _db.products);
+  $$OrdersTableTableManager get orders =>
+      $$OrdersTableTableManager(_db, _db.orders);
 }

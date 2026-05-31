@@ -5,9 +5,11 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'daos/orders_dao.dart';
 import 'daos/products_dao.dart';
 import 'daos/sync_meta_dao.dart';
 import 'daos/sync_queue_dao.dart';
+import 'orders_table.dart';
 import 'products_table.dart';
 import 'sync_meta_table.dart';
 import 'sync_operations_table.dart';
@@ -15,15 +17,15 @@ import 'sync_operations_table.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(
-  tables: [SyncOperations, SyncMeta, Products],
-  daos: [SyncQueueDao, SyncMetaDao, ProductsDao],
+  tables: [SyncOperations, SyncMeta, Products, Orders],
+  daos: [SyncQueueDao, SyncMetaDao, ProductsDao, OrdersDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -34,6 +36,9 @@ class AppDatabase extends _$AppDatabase {
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.createTable(products);
+          }
+          if (from < 3) {
+            await m.createTable(orders);
           }
         },
         beforeOpen: (details) async {
@@ -51,6 +56,10 @@ class AppDatabase extends _$AppDatabase {
       CREATE INDEX IF NOT EXISTS idx_products_workspace
       ON products(workspace_id, created_at)
       WHERE is_active = 1
+    ''');
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS idx_orders_workspace
+      ON orders(workspace_id, created_at)
     ''');
   }
 }

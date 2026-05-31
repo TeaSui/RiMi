@@ -20,6 +20,7 @@ import (
 	"github.com/rimi/server/internal/db"
 	"github.com/rimi/server/internal/email"
 	"github.com/rimi/server/internal/middleware"
+	"github.com/rimi/server/internal/orders"
 	"github.com/rimi/server/internal/products"
 	syncapi "github.com/rimi/server/internal/sync"
 	"github.com/rimi/server/internal/workspace"
@@ -177,6 +178,20 @@ func main() {
 			r.Use(httprate.LimitByIP(120, time.Minute))
 			r.Use(middleware.TenantTx(appPool))
 			r.Post("/{id}/adjust", productsHandler.AdjustInventory)
+		})
+
+		// Order management routes (authenticated + tenant transaction).
+		ordersRepo := orders.NewRepository()
+		ordersHandler := orders.NewHandler(ordersRepo)
+
+		r.Route("/orders", func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Use(httprate.LimitByIP(120, time.Minute))
+			r.Use(middleware.TenantTx(appPool))
+			r.Get("/", ordersHandler.ListOrders)
+			r.Post("/", ordersHandler.CreateOrder)
+			r.Get("/{id}", ordersHandler.GetOrder)
+			r.Put("/{id}/status", ordersHandler.AdvanceStatus)
 		})
 	})
 

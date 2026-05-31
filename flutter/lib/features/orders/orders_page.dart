@@ -1,9 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/app_icons.dart';
+import '../../core/auth/auth_notifier.dart';
+import '../../core/orders/order_providers.dart';
+import '../../data/drift/app_database.dart' as drift;
 import '../../data/mock_data.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/primitives.dart';
+
+// ─────────────────────────────────────────────────────────────────────
+// Adapter — converts a Drift Order to the mock Order model used by UI
+// ─────────────────────────────────────────────────────────────────────
+
+Order _toUiOrder(drift.Order d) {
+  final diff = DateTime.now().millisecondsSinceEpoch - d.createdAt;
+  final mins = diff ~/ 60000;
+  final timeStr = mins < 1
+      ? 'just now'
+      : mins < 60
+          ? '$mins min'
+          : '${mins ~/ 60}h';
+
+  return Order(
+    id: d.id,
+    cust: d.customerName ?? 'Walk-in',
+    ch: d.channel,
+    items: d.itemsSummary,
+    total: d.totalAmount,
+    status: d.status,
+    time: timeStr,
+    late: d.isLate,
+    seed: d.id.hashCode.abs() % 6,
+    note: d.note,
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Shared filter widgets
@@ -125,7 +157,7 @@ class SearchField extends StatelessWidget {
         color: RM.card,
         borderRadius: BorderRadius.circular(13),
         border: Border.all(color: RM.brand, width: 1.5),
-        boxShadow: [BoxShadow(color: RM.brandSoft, blurRadius: 0, spreadRadius: 3)],
+        boxShadow: [const BoxShadow(color: RM.brandSoft, blurRadius: 0, spreadRadius: 3)],
       ),
       child: Row(children: [
         const RmIcon('search', size: 19, color: RM.brand),
@@ -155,9 +187,14 @@ class SearchField extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────
 
 class OrderCard extends StatelessWidget {
-  const OrderCard({super.key, required this.o, required this.onOpen});
+  const OrderCard(
+      {super.key,
+      required this.o,
+      required this.onOpen,
+      this.onAdvance});
   final Order o;
   final VoidCallback onOpen;
+  final VoidCallback? onAdvance;
 
   @override
   Widget build(BuildContext context) {
@@ -240,7 +277,7 @@ class OrderCard extends StatelessWidget {
                 Flexible(
                   child: FilledButton(
                     onPressed: () {
-                      OrderStore.instance.advance(o.id);
+                      onAdvance?.call();
                       rmToast(context, '#${o.id} → ${statusStyle[nextStatus[o.status]]!.label}');
                     },
                     style: FilledButton.styleFrom(
@@ -265,9 +302,14 @@ class OrderCard extends StatelessWidget {
 }
 
 class DenseRow extends StatelessWidget {
-  const DenseRow({super.key, required this.o, required this.onOpen});
+  const DenseRow(
+      {super.key,
+      required this.o,
+      required this.onOpen,
+      this.onAdvance});
   final Order o;
   final VoidCallback onOpen;
+  final VoidCallback? onAdvance;
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +349,7 @@ class DenseRow extends StatelessWidget {
             const SizedBox(width: 10),
             GestureDetector(
               onTap: () {
-                OrderStore.instance.advance(o.id);
+                onAdvance?.call();
                 rmToast(context, '#${o.id} advanced');
               },
               child: Container(
@@ -448,20 +490,27 @@ class OrderDetailBody extends StatelessWidget {
             Expanded(
               flex: 2,
               child: order.status != 'done'
-                  ? FilledButton.icon(
-                      onPressed: () {
-                        OrderStore.instance.advance(order.id);
-                        rmToast(context, '#${order.id} → ${statusStyle[nextStatus[order.status]]!.label}');
-                        if (showBack) Navigator.of(context).maybePop();
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: RM.herb,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      icon: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
-                      label: Text(nextAction[order.status]!, style: RMType.body(size: 14.5, weight: FontWeight.w700, color: Colors.white)),
-                    )
+                  ? Consumer(builder: (context, ref, _) {
+                      return FilledButton.icon(
+                        onPressed: () {
+                          final ns = nextStatus[order.status];
+                          if (ns != null) {
+                            ref
+                                .read(ordersNotifierProvider.notifier)
+                                .advanceStatus(order.id, ns);
+                          }
+                          rmToast(context, '#${order.id} → ${statusStyle[nextStatus[order.status]]!.label}');
+                          if (showBack) Navigator.of(context).maybePop();
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: RM.herb,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
+                        label: Text(nextAction[order.status]!, style: RMType.body(size: 14.5, weight: FontWeight.w700, color: Colors.white)),
+                      );
+                    })
                   : FilledButton(
                       onPressed: null,
                       style: FilledButton.styleFrom(
@@ -479,21 +528,30 @@ class OrderDetailBody extends StatelessWidget {
   }
 }
 
-class OrderDetailPage extends StatelessWidget {
+class OrderDetailPage extends ConsumerWidget {
   const OrderDetailPage({super.key, required this.id});
   final String id;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authNotifierProvider);
+    final workspaceId = auth.activeWorkspaceId ?? '';
+    final ordersAsync = ref.watch(ordersProvider(workspaceId));
+
     return Scaffold(
       backgroundColor: RM.cream,
       body: SafeArea(
-        child: ListenableBuilder(
-          listenable: OrderStore.instance,
-          builder: (context, _) {
-            final o = OrderStore.instance.all.firstWhere((x) => x.id == id, orElse: () => OrderStore.instance.all.first);
+        child: ordersAsync.when(
+          data: (driftOrders) {
+            final uiOrders = driftOrders.map(_toUiOrder).toList();
+            final o = uiOrders.isEmpty
+                ? null
+                : uiOrders.firstWhere((x) => x.id == id,
+                    orElse: () => uiOrders.first);
             return OrderDetailBody(o: o, showBack: true);
           },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, s) => const Center(child: Text('Error loading order')),
         ),
       ),
     );
@@ -513,13 +571,13 @@ Future<bool?> showNewOrderComposer(BuildContext context) {
   );
 }
 
-class _NewOrderComposer extends StatefulWidget {
+class _NewOrderComposer extends ConsumerStatefulWidget {
   const _NewOrderComposer();
   @override
-  State<_NewOrderComposer> createState() => _NewOrderComposerState();
+  ConsumerState<_NewOrderComposer> createState() => _NewOrderComposerState();
 }
 
-class _NewOrderComposerState extends State<_NewOrderComposer> {
+class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
   final Map<String, int> _qty = {};
   final _name = TextEditingController();
 
@@ -539,13 +597,12 @@ class _NewOrderComposerState extends State<_NewOrderComposer> {
 
   void _create() {
     final items = composerMenu.where((m) => _qty[m.$1] != null).map((m) => '${m.$1} ×${_qty[m.$1]}').join(', ');
-    final first = composerMenu.firstWhere((m) => _qty[m.$1] != null, orElse: () => composerMenu.first);
-    OrderStore.instance.add(
-      cust: _name.text.trim().isEmpty ? 'Khách lẻ · Walk-in' : _name.text.trim(),
-      ch: 'walkin',
-      items: items,
-      total: _total,
-      seed: first.$3,
+    final custName = _name.text.trim().isEmpty ? 'Khách lẻ · Walk-in' : _name.text.trim();
+    ref.read(ordersNotifierProvider.notifier).createOrder(
+      channel: 'walkin',
+      customerName: custName,
+      itemsSummary: items,
+      totalAmount: _total,
     );
     Navigator.of(context).pop(true);
     rmToast(context, 'Order created');
@@ -739,14 +796,14 @@ class _Field extends StatelessWidget {
 // MOBILE
 // ─────────────────────────────────────────────────────────────────────
 
-class OrdersMobile extends StatefulWidget {
+class OrdersMobile extends ConsumerStatefulWidget {
   const OrdersMobile({super.key, this.dense = false});
   final bool dense;
   @override
-  State<OrdersMobile> createState() => _OrdersMobileState();
+  ConsumerState<OrdersMobile> createState() => _OrdersMobileState();
 }
 
-class _OrdersMobileState extends State<OrdersMobile> {
+class _OrdersMobileState extends ConsumerState<OrdersMobile> {
   String _channel = 'all';
   String _status = 'cooking';
   bool _searchOpen = false;
@@ -760,16 +817,33 @@ class _OrdersMobileState extends State<OrdersMobile> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: OrderStore.instance,
-      builder: (context, _) {
-        final orders = OrderStore.instance.all;
-        final byChannel = orders.where((o) => _channel == 'all' || o.ch == _channel).toList();
-        final counts = {for (final t in statusTabs) t.$1: byChannel.where((o) => o.status == t.$1).length};
+    final auth = ref.watch(authNotifierProvider);
+    final workspaceId = auth.activeWorkspaceId ?? '';
+    final ordersAsync = ref.watch(ordersProvider(workspaceId));
+
+    return ordersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => const Center(child: Text('Error loading orders')),
+      data: (driftOrders) {
+        final orders = driftOrders.map(_toUiOrder).toList();
+        final byChannel = orders
+            .where((o) => _channel == 'all' || o.ch == _channel)
+            .toList();
+        final counts = {
+          for (final t in statusTabs)
+            t.$1: byChannel.where((o) => o.status == t.$1).length
+        };
         final q = _search.text.trim().toLowerCase();
         final list = byChannel
-            .where((o) => o.status == _status && (q.isEmpty || ('${o.id}${o.cust}${o.items}').toLowerCase().contains(q)))
+            .where((o) =>
+                o.status == _status &&
+                (q.isEmpty ||
+                    ('${o.id}${o.cust}${o.items}')
+                        .toLowerCase()
+                        .contains(q)))
             .toList();
+        final activeCount =
+            orders.where((o) => o.status != 'done').length;
 
         return Column(
           children: [
@@ -777,18 +851,41 @@ class _OrdersMobileState extends State<OrdersMobile> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
               child: Row(children: [
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Orders', style: RMType.display(size: 24)),
-                    Text('${orders.length} today · ${OrderStore.instance.activeCount} active', style: RMType.body(size: 12.5, color: RM.muted)),
-                  ]),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Orders', style: RMType.display(size: 24)),
+                        Text(
+                            '${orders.length} today · $activeCount active',
+                            style: RMType.body(
+                                size: 12.5, color: RM.muted)),
+                      ]),
                 ),
-                _IconBtn(icon: 'search', active: _searchOpen, onTap: () => setState(() { _searchOpen = !_searchOpen; _search.clear(); })),
+                _IconBtn(
+                    icon: 'search',
+                    active: _searchOpen,
+                    onTap: () => setState(() {
+                          _searchOpen = !_searchOpen;
+                          _search.clear();
+                        })),
                 const SizedBox(width: 12),
                 FilledButton.icon(
-                  onPressed: () => showNewOrderComposer(context).then((created) { if (created == true) setState(() => _status = 'new'); }),
-                  style: FilledButton.styleFrom(backgroundColor: RM.brand, padding: const EdgeInsets.symmetric(horizontal: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13))),
-                  icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
-                  label: Text('New', style: RMType.body(size: 13.5, weight: FontWeight.w700, color: Colors.white)),
+                  onPressed: () => showNewOrderComposer(context).then(
+                      (created) {
+                    if (created == true) setState(() => _status = 'new');
+                  }),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: RM.brand,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(13))),
+                  icon: const Icon(Icons.add_rounded,
+                      size: 18, color: Colors.white),
+                  label: Text('New',
+                      style: RMType.body(
+                          size: 13.5,
+                          weight: FontWeight.w700,
+                          color: Colors.white)),
                 ),
               ]),
             ),
@@ -799,37 +896,77 @@ class _OrdersMobileState extends State<OrdersMobile> {
                   if (_searchOpen)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                      child: SearchField(controller: _search, onChanged: (_) => setState(() {}), onClose: () => setState(() { _searchOpen = false; _search.clear(); })),
+                      child: SearchField(
+                          controller: _search,
+                          onChanged: (_) => setState(() {}),
+                          onClose: () => setState(() {
+                                _searchOpen = false;
+                                _search.clear();
+                              })),
                     ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                    child: ChannelChips(value: _channel, onChange: (v) => setState(() => _channel = v)),
+                    child: ChannelChips(
+                        value: _channel,
+                        onChange: (v) => setState(() => _channel = v)),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: StatusTabs(value: _status, onChange: (v) => setState(() => _status = v), counts: counts),
+                    child: StatusTabs(
+                        value: _status,
+                        onChange: (v) => setState(() => _status = v),
+                        counts: counts),
                   ),
                   if (list.isEmpty)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(30, 60, 30, 60),
                       child: Column(children: [
-                        Icon(AppIcons.of('orders'), size: 40, color: RM.faint),
+                        Icon(AppIcons.of('orders'),
+                            size: 40, color: RM.faint),
                         const SizedBox(height: 12),
-                        Text('No ${statusStyle[_status]!.label.toLowerCase()} orders', style: RMType.body(size: 14, weight: FontWeight.w600, color: RM.muted)),
+                        Text(
+                            'No ${statusStyle[_status]!.label.toLowerCase()} orders',
+                            style: RMType.body(
+                                size: 14,
+                                weight: FontWeight.w600,
+                                color: RM.muted)),
                       ]),
                     )
                   else if (widget.dense)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 6, 20, 100),
-                      child: Column(children: [for (final o in list) DenseRow(o: o, onOpen: () => _open(o))]),
+                      child: Column(
+                          children: [
+                        for (final o in list)
+                          DenseRow(
+                            o: o,
+                            onOpen: () => _open(o),
+                            onAdvance: nextStatus[o.status] != null
+                                ? () => ref
+                                    .read(ordersNotifierProvider.notifier)
+                                    .advanceStatus(
+                                        o.id, nextStatus[o.status]!)
+                                : null,
+                          )
+                      ]),
                     )
                   else
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 100),
+                      padding:
+                          const EdgeInsets.fromLTRB(20, 14, 20, 100),
                       child: Column(children: [
                         for (int i = 0; i < list.length; i++) ...[
                           if (i > 0) const SizedBox(height: 12),
-                          OrderCard(o: list[i], onOpen: () => _open(list[i])),
+                          OrderCard(
+                            o: list[i],
+                            onOpen: () => _open(list[i]),
+                            onAdvance: nextStatus[list[i].status] != null
+                                ? () => ref
+                                    .read(ordersNotifierProvider.notifier)
+                                    .advanceStatus(list[i].id,
+                                        nextStatus[list[i].status]!)
+                                : null,
+                          ),
                         ],
                       ]),
                     ),
@@ -842,7 +979,8 @@ class _OrdersMobileState extends State<OrdersMobile> {
     );
   }
 
-  void _open(Order o) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => OrderDetailPage(id: o.id)));
+  void _open(Order o) => Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => OrderDetailPage(id: o.id)));
 }
 
 class _IconBtn extends StatelessWidget {
@@ -872,13 +1010,13 @@ class _IconBtn extends StatelessWidget {
 // TABLET — list + detail split view
 // ─────────────────────────────────────────────────────────────────────
 
-class OrdersTablet extends StatefulWidget {
+class OrdersTablet extends ConsumerStatefulWidget {
   const OrdersTablet({super.key});
   @override
-  State<OrdersTablet> createState() => _OrdersTabletState();
+  ConsumerState<OrdersTablet> createState() => _OrdersTabletState();
 }
 
-class _OrdersTabletState extends State<OrdersTablet> {
+class _OrdersTabletState extends ConsumerState<OrdersTablet> {
   String _channel = 'all';
   String _status = 'cooking';
   String _selId = '1042';
@@ -893,16 +1031,32 @@ class _OrdersTabletState extends State<OrdersTablet> {
 
   @override
   Widget build(BuildContext context) {
-    final portrait = MediaQuery.sizeOf(context).height > MediaQuery.sizeOf(context).width;
-    return ListenableBuilder(
-      listenable: OrderStore.instance,
-      builder: (context, _) {
-        final orders = OrderStore.instance.all;
-        final byChannel = orders.where((o) => _channel == 'all' || o.ch == _channel).toList();
-        final counts = {for (final t in statusTabs) t.$1: byChannel.where((o) => o.status == t.$1).length};
+    final portrait =
+        MediaQuery.sizeOf(context).height > MediaQuery.sizeOf(context).width;
+    final auth = ref.watch(authNotifierProvider);
+    final workspaceId = auth.activeWorkspaceId ?? '';
+    final ordersAsync = ref.watch(ordersProvider(workspaceId));
+
+    return ordersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => const Center(child: Text('Error loading orders')),
+      data: (driftOrders) {
+        final orders = driftOrders.map(_toUiOrder).toList();
+        final byChannel = orders
+            .where((o) => _channel == 'all' || o.ch == _channel)
+            .toList();
+        final counts = {
+          for (final t in statusTabs)
+            t.$1: byChannel.where((o) => o.status == t.$1).length
+        };
         final q = _search.text.trim().toLowerCase();
         final list = byChannel
-            .where((o) => o.status == _status && (q.isEmpty || ('${o.id}${o.cust}${o.items}').toLowerCase().contains(q)))
+            .where((o) =>
+                o.status == _status &&
+                (q.isEmpty ||
+                    ('${o.id}${o.cust}${o.items}')
+                        .toLowerCase()
+                        .contains(q)))
             .toList();
         final matches = orders.where((o) => o.id == _selId).toList();
         final sel = matches.isEmpty ? null : matches.first;
@@ -913,38 +1067,79 @@ class _OrdersTabletState extends State<OrdersTablet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
               child: Row(children: [
-                Expanded(child: Text('Orders', style: RMType.display(size: 24))),
-                _IconBtn(icon: 'search', active: _searchOpen, onTap: () => setState(() { _searchOpen = !_searchOpen; _search.clear(); })),
+                Expanded(
+                    child:
+                        Text('Orders', style: RMType.display(size: 24))),
+                _IconBtn(
+                    icon: 'search',
+                    active: _searchOpen,
+                    onTap: () => setState(() {
+                          _searchOpen = !_searchOpen;
+                          _search.clear();
+                        })),
                 const SizedBox(width: 10),
                 FilledButton.icon(
-                  onPressed: () => showNewOrderComposer(context).then((c) { if (c == true) setState(() => _status = 'new'); }),
-                  style: FilledButton.styleFrom(backgroundColor: RM.brand, padding: const EdgeInsets.symmetric(horizontal: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  icon: const Icon(Icons.add_rounded, size: 18, color: Colors.white),
-                  label: Text('New order', style: RMType.body(size: 14, weight: FontWeight.w700, color: Colors.white)),
+                  onPressed: () =>
+                      showNewOrderComposer(context).then((c) {
+                    if (c == true) setState(() => _status = 'new');
+                  }),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: RM.brand,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12))),
+                  icon: const Icon(Icons.add_rounded,
+                      size: 18, color: Colors.white),
+                  label: Text('New order',
+                      style: RMType.body(
+                          size: 14,
+                          weight: FontWeight.w700,
+                          color: Colors.white)),
                 ),
               ]),
             ),
             if (_searchOpen)
               Padding(
                 padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
-                child: SearchField(controller: _search, onChanged: (_) => setState(() {}), onClose: () => setState(() { _searchOpen = false; _search.clear(); })),
+                child: SearchField(
+                    controller: _search,
+                    onChanged: (_) => setState(() {}),
+                    onClose: () => setState(() {
+                          _searchOpen = false;
+                          _search.clear();
+                        })),
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
-              child: ChannelChips(value: _channel, onChange: (v) => setState(() => _channel = v)),
+              child: ChannelChips(
+                  value: _channel,
+                  onChange: (v) => setState(() => _channel = v)),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: StatusTabs(value: _status, onChange: (v) => setState(() => _status = v), counts: counts),
+              child: StatusTabs(
+                  value: _status,
+                  onChange: (v) => setState(() => _status = v),
+                  counts: counts),
             ),
             Expanded(
               child: list.isEmpty
-                  ? Center(child: Text('No orders here', style: RMType.body(size: 14, color: RM.muted)))
+                  ? Center(
+                      child: Text('No orders here',
+                          style:
+                              RMType.body(size: 14, color: RM.muted)))
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
+                      padding:
+                          const EdgeInsets.fromLTRB(22, 14, 22, 22),
                       itemCount: list.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 11),
-                      itemBuilder: (context, i) => _TabletOrderRow(o: list[i], selected: list[i].id == _selId, onTap: () => setState(() => _selId = list[i].id)),
+                      separatorBuilder: (ctx, idx) =>
+                          const SizedBox(height: 11),
+                      itemBuilder: (context, i) => _TabletOrderRow(
+                          o: list[i],
+                          selected: list[i].id == _selId,
+                          onTap: () =>
+                              setState(() => _selId = list[i].id)),
                     ),
             ),
           ],
@@ -957,18 +1152,27 @@ class _OrdersTabletState extends State<OrdersTablet> {
             children: [
               SizedBox(
                 width: portrait ? null : 470,
-                height: portrait ? MediaQuery.sizeOf(context).height * 0.46 : null,
+                height: portrait
+                    ? MediaQuery.sizeOf(context).height * 0.46
+                    : null,
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border(
-                      right: portrait ? BorderSide.none : const BorderSide(color: RM.line),
-                      bottom: portrait ? const BorderSide(color: RM.line) : BorderSide.none,
+                      right: portrait
+                          ? BorderSide.none
+                          : const BorderSide(color: RM.line),
+                      bottom: portrait
+                          ? const BorderSide(color: RM.line)
+                          : BorderSide.none,
                     ),
                   ),
                   child: listPane,
                 ),
               ),
-              Expanded(child: Container(color: RM.card, child: OrderDetailBody(o: sel))),
+              Expanded(
+                  child: Container(
+                      color: RM.card,
+                      child: OrderDetailBody(o: sel))),
             ],
           ),
         );

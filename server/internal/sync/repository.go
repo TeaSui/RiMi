@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -69,7 +70,7 @@ func (r *pgTxRepository) CachedResult(ctx context.Context, workspaceID, opID str
 		`SELECT result FROM sync_applied_ops WHERE workspace_id = $1 AND op_id = $2`,
 		workspaceID, opID,
 	).Scan(&raw)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
@@ -91,8 +92,11 @@ func (r *pgTxRepository) ApplyInventoryDelta(ctx context.Context, workspaceID, e
 		WHERE workspace_id = $1 AND id = $2
 		RETURNING quantity
 	`, workspaceID, entityID, delta).Scan(&quantity)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, fmt.Errorf("inventory_item %s not found in workspace %s", entityID, workspaceID)
+	}
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("apply delta to %s: %w", entityID, err)
 	}
 	return quantity, nil
 }

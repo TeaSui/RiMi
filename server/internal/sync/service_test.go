@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
@@ -187,6 +188,34 @@ func TestApplyBatch_MultipleEntitiesProcessedInSortedOrder(t *testing.T) {
 	// Both deltas applied: -3 then -5 (entity-a before entity-b).
 	if repo.appliedDelta != -8 {
 		t.Errorf("expected total appliedDelta=-8, got %d", repo.appliedDelta)
+	}
+}
+
+func TestApplyBatch_RejectsUnknownEntityType(t *testing.T) {
+	repo := newFakeRepo(10)
+	svc := NewService(repo)
+
+	_, err := svc.ApplyBatch(context.Background(), "user-a", "workspace-a", []Operation{
+		{OpID: "op-1", EntityType: "transactions", EntityID: "item-1", OpType: "inventory_delta", Delta: intPtr(-1)},
+	})
+
+	if err == nil {
+		t.Fatal("expected error for unknown entity_type, got nil")
+	}
+}
+
+func TestApplyBatch_RejectsOversizedBatch(t *testing.T) {
+	repo := newFakeRepo(10)
+	svc := NewService(repo)
+
+	ops := make([]Operation, maxBatchOps+1)
+	for i := range ops {
+		ops[i] = Operation{OpID: fmt.Sprintf("op-%d", i), EntityType: "inventory_item", EntityID: "item-1", OpType: "inventory_delta", Delta: intPtr(-1)}
+	}
+
+	_, err := svc.ApplyBatch(context.Background(), "user-a", "workspace-a", ops)
+	if err == nil {
+		t.Fatal("expected error for oversized batch, got nil")
 	}
 }
 

@@ -28,9 +28,23 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
+const maxBatchOps = 500
+
 // ApplyBatch groups ops by entityID, acquires sorted advisory locks, and applies
 // fresh deltas atomically per group. Cached ops return their ledger result unchanged.
 func (s *Service) ApplyBatch(ctx context.Context, userID, workspaceID string, ops []Operation) ([]Result, error) {
+	if len(ops) > maxBatchOps {
+		return nil, fmt.Errorf("batch too large: %d ops (max %d)", len(ops), maxBatchOps)
+	}
+	for _, op := range ops {
+		if !allowedEntityTypes[op.EntityType] {
+			return nil, fmt.Errorf("op %s: unsupported entity_type %q", op.OpID, op.EntityType)
+		}
+		if !allowedOpTypes[op.OpType] {
+			return nil, fmt.Errorf("op %s: unsupported op_type %q", op.OpID, op.OpType)
+		}
+	}
+
 	// Group by entityID — Phase 2 only handles inventory_delta.
 	groups := map[string][]Operation{}
 	for _, op := range ops {

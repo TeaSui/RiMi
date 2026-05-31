@@ -83,17 +83,16 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> markRetry(
     String opId, {
-    required int retryCount,
     required int nextRetryAt,
     required int nowMs,
   }) {
     return (update(syncOperations)..where((tbl) => tbl.opId.equals(opId)))
-        .write(SyncOperationsCompanion(
-      status: const Value('pending'),
-      inflightSince: const Value(null),
-      retryCount: Value(retryCount),
-      nextRetryAt: Value(nextRetryAt),
-      updatedAt: Value(nowMs),
+        .write(SyncOperationsCompanion.custom(
+      status: const Constant('pending'),
+      inflightSince: const Constant(null),
+      nextRetryAt: Constant(nextRetryAt),
+      updatedAt: Constant(nowMs),
+      retryCount: syncOperations.retryCount + const Constant(1),
     ));
   }
 

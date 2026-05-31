@@ -69,12 +69,11 @@ class SyncQueue implements FlushQueue {
   @override
   Future<void> markRetry(
     String opId, {
-    required int retryCount,
     required int nextRetryAt,
     required int nowMs,
   }) {
     return db.syncQueueDao
-        .markRetry(opId, retryCount: retryCount, nextRetryAt: nextRetryAt, nowMs: nowMs);
+        .markRetry(opId, nextRetryAt: nextRetryAt, nowMs: nowMs);
   }
 
   @override

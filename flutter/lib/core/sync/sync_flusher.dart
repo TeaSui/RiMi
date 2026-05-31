@@ -14,7 +14,6 @@ abstract class FlushQueue {
   Future<void> markInflight(List<String> opIds, {required int nowMs});
   Future<void> markRetry(
     String opId, {
-    required int retryCount,
     required int nextRetryAt,
     required int nowMs,
   });
@@ -83,7 +82,6 @@ class SyncFlusher {
       for (final opId in opIds) {
         await queue.markRetry(
           opId,
-          retryCount: 1,
           nextRetryAt: nowMs2 + 4000,
           nowMs: nowMs2,
         );

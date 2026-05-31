@@ -75,6 +75,34 @@ void main() {
 
     expect(queue.retryCalledFor, contains('op-1'));
   });
+
+  test('conflict result calls deleteDone same as applied', () async {
+    final queue = FakeFlushQueue(opIds: ['op-conflict']);
+    final flusher = SyncFlusher(
+      workspaceId: 'workspace-a',
+      queue: queue,
+      client: ConflictSyncClient(),
+      clockMs: () => 1000,
+    );
+
+    await flusher.flush();
+
+    expect(queue.doneDeletedFor, contains('op-conflict'));
+  });
+
+  test('missing result from server calls markFailed with missing_result', () async {
+    final queue = FakeFlushQueue(opIds: ['op-missing']);
+    final flusher = SyncFlusher(
+      workspaceId: 'workspace-a',
+      queue: queue,
+      client: EmptyResultSyncClient(),
+      clockMs: () => 1000,
+    );
+
+    await flusher.flush();
+
+    expect(queue.failedFor['op-missing'], 'missing_result');
+  });
 }
 
 class FakeFlushQueue implements FlushQueue {
@@ -84,7 +112,9 @@ class FakeFlushQueue implements FlushQueue {
   bool expirySwept = false;
   final List<String> inflightMarked = [];
   final List<String> deletedDone = [];
+  final List<String> doneDeletedFor = [];
   final Map<String, String> failedOps = {};
+  final Map<String, String> failedFor = {};
   final List<String> retryCalledFor = [];
 
   @override
@@ -117,12 +147,12 @@ class FakeFlushQueue implements FlushQueue {
     required int nowMs,
   }) async {
     failedOps[opId] = error;
+    failedFor[opId] = error;
   }
 
   @override
   Future<void> markRetry(
     String opId, {
-    required int retryCount,
     required int nextRetryAt,
     required int nowMs,
   }) async {
@@ -132,6 +162,7 @@ class FakeFlushQueue implements FlushQueue {
   @override
   Future<void> deleteDone(String opId) async {
     deletedDone.add(opId);
+    doneDeletedFor.add(opId);
   }
 }
 
@@ -166,5 +197,27 @@ class ThrowingSyncClient implements SyncClient {
   @override
   Future<List<SyncOpResult>> postBatch(List<String> opIds) async {
     throw Exception('network error');
+  }
+}
+
+class ConflictSyncClient implements SyncClient {
+  @override
+  Future<List<SyncOpResult>> postBatch(List<String> opIds) async {
+    return [
+      SyncOpResult(
+        opId: opIds.first,
+        status: SyncResultStatus.conflict,
+        resolvedValue: 5,
+        serverUpdatedAt: DateTime.utc(2026, 5, 31),
+        error: null,
+      ),
+    ];
+  }
+}
+
+class EmptyResultSyncClient implements SyncClient {
+  @override
+  Future<List<SyncOpResult>> postBatch(List<String> opIds) async {
+    return []; // returns no results — triggers missing_result path
   }
 }

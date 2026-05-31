@@ -102,9 +102,11 @@ Cursor is committed atomically only after all rows in a pull page are successful
 
 ```sql
 CREATE INDEX idx_sync_ops_flush
-  ON sync_operations(workspace_id, status, next_retry_at)
+  ON sync_operations(workspace_id, next_retry_at, created_at)
   WHERE status = 'pending';
 ```
+
+Index covers the full dequeue query: `workspace_id` filters, `next_retry_at` satisfies the eligibility predicate, `created_at` supports the `ORDER BY created_at ASC` sort without a separate pass.
 
 ---
 
@@ -160,6 +162,30 @@ GET /v1/sync/pull?entity=<type>&after_updated_at=<unix_ms>&after_id=<uuid>
 
 ## Server-Side Additions
 
+### `sync_applied_ops` — server-side idempotency ledger
+
+New table in migration 000003. Keyed by `(workspace_id, op_id)`. Stores the original result payload so a client retry after timeout receives the identical response rather than re-applying.
+
+```sql
+CREATE TABLE sync_applied_ops (
+    workspace_id  uuid        NOT NULL,
+    op_id         text        NOT NULL,
+    result        jsonb       NOT NULL,   -- cached per-op result payload
+    applied_at    timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (workspace_id, op_id)
+);
+CREATE INDEX idx_sync_applied_ops_ttl ON sync_applied_ops(applied_at);
+```
+
+**TTL cleanup:** background job (or pg_cron) deletes rows older than 7 days. Safe because client `retry_count` max is 3 with exponential backoff — no legitimate retry arrives after 7 days.
+
+**Handler contract:** within a single Postgres transaction —
+1. Lock: `pg_advisory_xact_lock(hashtext(op_id))`
+2. Check `sync_applied_ops` — return cached result if exists
+3. Apply operation
+4. Insert result into `sync_applied_ops`
+5. Commit
+
 ### Migration 000003 — `updated_at` + soft-delete (Phase 2 scope)
 
 Tables: `products`, `product_variants`, `inventory_items`
@@ -184,7 +210,7 @@ Other tables (orders, customers, etc.) get the same treatment in their respectiv
     {
       "op_id": "<client-uuid>",
       "entity_type": "inventory_item",
-      "entity_id": "<variant-uuid>",
+      "entity_id": "<inventory_items.id-uuid>",
       "op_type": "inventory_delta",
       "delta": -2,
       "payload": null,
@@ -194,7 +220,9 @@ Other tables (orders, customers, etc.) get the same treatment in their respectiv
 }
 ```
 
-**Processing:** `inventory_delta` ops for the same `entity_id` within a batch are summed and applied atomically via `SELECT pg_advisory_xact_lock(hashtext(entity_id))` inside a transaction. This prevents concurrent batches from two devices racing.
+**Idempotency:** before applying any op, the server checks `sync_applied_ops` for `(workspace_id, op_id)`. If found, the cached result is returned immediately without re-applying. If not found, the op is applied and the result is inserted into `sync_applied_ops` in the same transaction.
+
+**Processing:** `inventory_delta` ops for the same `entity_id` within a batch are summed and applied atomically via `SELECT pg_advisory_xact_lock(hashtext(entity_id))` inside a transaction. `entity_id` must be an `inventory_items.id` UUID (not `variant_id` — `quantity` lives on `inventory_items`, see `000001_init_schema.up.sql` line 121). This prevents concurrent batches from two devices racing.
 
 **Response (envelope):**
 ```json
@@ -292,9 +320,11 @@ _ChannelEntry {
 3. Return `Subscription` handle — caller calls `subscription.cancel()` to unsubscribe
 
 **`cancel()` (via Subscription handle):**
-1. `refCount--`
-2. If `refCount == 0`: cancel `reconnectTimer`, close WS, close stream controllers, **remove entry from `_channels` map**
-3. If `refCount > 0`: no-op on the socket
+1. If `_cancelled == true`: return immediately (idempotent — double-cancel is a no-op)
+2. Set `_cancelled = true`
+3. `refCount--`
+4. If `refCount == 0`: cancel `reconnectTimer`, close WS, close stream controllers, **remove entry from `_channels` map**
+5. If `refCount > 0`: no-op on the socket
 
 **Reconnect policy (on unexpected WS close):**
 - Only reconnect if `refCount > 0`
@@ -345,7 +375,7 @@ server/internal/sync/
   repository.go       // Postgres queries
 
 server/migrations/
-  000003_sync_columns.up.sql    // updated_at, deleted_at, triggers
+  000003_sync_columns.up.sql    // updated_at, deleted_at, triggers, sync_applied_ops table
   000003_sync_columns.down.sql
 ```
 

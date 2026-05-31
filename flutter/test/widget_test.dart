@@ -13,11 +13,35 @@ import 'package:rimi/app.dart';
 import 'package:rimi/core/auth/auth_state.dart';
 import 'package:rimi/core/auth/token_storage.dart';
 import 'package:rimi/core/network/dio_client.dart';
+import 'package:rimi/core/sync/sync_providers.dart';
+import 'package:rimi/core/sync/sync_flusher.dart';
+import 'package:rimi/core/sync/sync_operation.dart';
+import 'package:rimi/data/drift/app_database.dart';
 import 'package:rimi/theme/app_theme.dart';
 import 'package:rimi/widgets/navigation.dart';
 
 import 'helpers/fake_token_storage.dart';
 import 'helpers/fake_dio.dart';
+
+// No-op fakes for providers that would open DB or start timers in widget tests.
+class _NoOpFlushQueue implements FlushQueue {
+  @override Future<int> expireOldPendingOps({required int nowMs, required int maxAgeMs}) async => 0;
+  @override Future<List<String>> dequeueOpIds(String w, {required int nowMs, required int limit}) async => [];
+  @override Future<void> markInflight(List<String> ids, {required int nowMs}) async {}
+  @override Future<void> markRetry(String id, {required int nextRetryAt, required int nowMs}) async {}
+  @override Future<void> markFailed(String id, {required String error, required int nowMs}) async {}
+  @override Future<void> deleteDone(String id) async {}
+}
+class _NoOpSyncClientTest implements SyncClient {
+  @override Future<List<SyncOpResult>> postBatch(List<String> ids) async => [];
+}
+
+SyncFlusher _noOpFlusher() => SyncFlusher(
+  workspaceId: '',
+  queue: _NoOpFlushQueue(),
+  client: _NoOpSyncClientTest(),
+  clockMs: () => 0,
+);
 
 void main() {
   group('RootShell smoke test', () {
@@ -40,6 +64,12 @@ void main() {
           overrides: [
             tokenStorageProvider.overrideWithValue(FakeTokenStorage()),
             dioClientProvider.overrideWithValue(FakeDio.create()),
+            syncFlusherProvider.overrideWithValue(_noOpFlusher()),
+            appDatabaseProvider.overrideWith((ref) {
+              final db = AppDatabase.memory();
+              ref.onDispose(db.close);
+              return db;
+            }),
           ],
           child: MaterialApp(
             theme: AppTheme.light,
@@ -55,6 +85,11 @@ void main() {
       // RiMiBottomNav is the custom bottom navigation bar (not Flutter's
       // BottomNavigationBar which is not used in this design system).
       expect(find.byType(RiMiBottomNav), findsOneWidget);
+
+      // Dispose widget tree cleanly to allow Drift stream subscriptions to cancel.
+      // Close widget tree and allow async DB cleanup to complete.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
     });
 
     testWidgets('AppNav.navKey is bound to the nested Navigator inside RootShell',
@@ -75,6 +110,12 @@ void main() {
           overrides: [
             tokenStorageProvider.overrideWithValue(FakeTokenStorage()),
             dioClientProvider.overrideWithValue(FakeDio.create()),
+            syncFlusherProvider.overrideWithValue(_noOpFlusher()),
+            appDatabaseProvider.overrideWith((ref) {
+              final db = AppDatabase.memory();
+              ref.onDispose(db.close);
+              return db;
+            }),
           ],
           child: MaterialApp(
             theme: AppTheme.light,
@@ -86,6 +127,10 @@ void main() {
 
       // AppNav.navKey should be attached to the nested Navigator.
       expect(AppNav.navKey.currentState, isNotNull);
+
+      // Close widget tree and allow async DB cleanup to complete.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
     });
 
     testWidgets('tab switch via AppNav.goTab changes the tab', (tester) async {
@@ -106,6 +151,12 @@ void main() {
           overrides: [
             tokenStorageProvider.overrideWithValue(FakeTokenStorage()),
             dioClientProvider.overrideWithValue(FakeDio.create()),
+            syncFlusherProvider.overrideWithValue(_noOpFlusher()),
+            appDatabaseProvider.overrideWith((ref) {
+              final db = AppDatabase.memory();
+              ref.onDispose(db.close);
+              return db;
+            }),
           ],
           child: MaterialApp(
             theme: AppTheme.light,
@@ -122,6 +173,10 @@ void main() {
 
       // Reset for other tests.
       AppNav.tab.value = 0;
+
+      // Close widget tree and allow async DB cleanup to complete.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
     });
   });
 
@@ -154,6 +209,12 @@ void main() {
           overrides: [
             tokenStorageProvider.overrideWithValue(FakeTokenStorage()),
             dioClientProvider.overrideWithValue(FakeDio.create()),
+            syncFlusherProvider.overrideWithValue(_noOpFlusher()),
+            appDatabaseProvider.overrideWith((ref) {
+              final db = AppDatabase.memory();
+              ref.onDispose(db.close);
+              return db;
+            }),
           ],
           child: MaterialApp.router(
             theme: AppTheme.light,

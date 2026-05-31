@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RiMi — Screen Reference Set</title>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink:#1A1208; --sub:#7a6f63; --line:#e8e4dc; --brand:#E0552B; --cream:#FAF9F5; --warm:#F0EEE9; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--warm); color:var(--ink); font-family:"Be Vietnam Pro",sans-serif; }
+  header { padding:40px 48px 8px; }
+  .kicker { font-size:12px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--brand); }
+  h1 { font-family:"Bricolage Grotesque",sans-serif; font-weight:800; font-size:34px; margin:6px 0 6px; letter-spacing:-0.5px; }
+  .lede { font-size:15px; color:var(--sub); max-width:760px; line-height:1.55; margin:0; }
+  .meta { display:flex; gap:24px; margin-top:16px; font-size:13px; color:var(--sub); }
+  .meta b { color:var(--ink); font-weight:600; }
+  section { padding:28px 48px 8px; }
+  .sec-head { display:flex; align-items:baseline; gap:12px; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:24px; }
+  .sec-head h2 { font-family:"Bricolage Grotesque",sans-serif; font-size:20px; font-weight:700; margin:0; }
+  .sec-head span { font-size:13px; color:var(--sub); }
+  .grid { display:grid; gap:28px 24px; }
+  .grid.mobile { grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
+  .grid.tablet { grid-template-columns:repeat(auto-fill, minmax(380px, 1fr)); }
+  figure { margin:0; }
+  .shot { background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 6px 22px rgba(43,33,27,.07); }
+  .shot img { display:block; width:100%; height:auto; }
+  figcaption { margin-top:11px; }
+  .cap-row { display:flex; align-items:center; gap:8px; }
+  .num { font-family:"Bricolage Grotesque",sans-serif; font-weight:800; font-size:13px; color:var(--brand); }
+  .name { font-weight:600; font-size:14px; }
+  .file { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11.5px; color:var(--sub); margin-top:3px; }
+  footer { padding:24px 48px 56px; color:var(--sub); font-size:12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">Developer Handoff</div>
+  <h1>RiMi — Screen Reference Set</h1>
+  <p class="lede">Canonical design renders for build comparison. Each frame is a 1:1 native-resolution capture of the approved design — no device bezel, no prototype chrome — so it diffs directly against the running Flutter screen.</p>
+  <div class="meta">
+    <div>Mobile <b>390 × 844</b></div>
+    <div>Tablet <b>1112 × 834</b></div>
+    <div>Screens <b>16</b></div>
+  </div>
+</header>
+
+<section>
+  <div class="sec-head"><h2>Mobile</h2><span>iPhone logical px · primary build target</span></div>
+  <div class="grid mobile" id="m"></div>
+</section>
+
+<section>
+  <div class="sec-head"><h2>Tablet</h2><span>iPad · landscape</span></div>
+  <div class="grid tablet" id="t"></div>
+</section>
+
+<footer>Source of truth: <b>RiMi Prototype.html</b> · <b>RiMi Design System.html</b>. Full route &amp; file mapping in <b>screens/INDEX.md</b>.</footer>
+
+<script>
+const mobile = [
+  ['01','Home','features/home/home_screen.dart'],
+  ['02','Orders','features/orders/orders_screen.dart'],
+  ['03','Order detail','features/orders/orders_screen.dart'],
+  ['04','Products','features/products/products_screen.dart'],
+  ['05','Content','features/customers/content_screen.dart'],
+  ['06','Finance','features/finance/finance_screen.dart'],
+  ['07','Customers','features/customers/customers_screen.dart'],
+  ['08','AI Team','features/ai_team/ai_team_screen.dart'],
+  ['09','AI Chat','features/ai_team/ai_chat_screen.dart'],
+];
+const tablet = [
+  ['10','Home · tablet','features/home/home_screen.dart'],
+  ['11','Orders · tablet','features/orders/orders_screen.dart'],
+  ['12','Products · tablet','features/products/products_screen.dart'],
+  ['13','Content · tablet','features/customers/content_screen.dart'],
+  ['14','Finance · tablet','features/finance/finance_screen.dart'],
+  ['15','Customers · tablet','features/customers/customers_screen.dart'],
+  ['16','AI Team · tablet','features/ai_team/ai_team_screen.dart'],
+];
+const slug = {
+  '01':'01-home','02':'02-orders','03':'03-order-detail','04':'04-products','05':'05-content',
+  '06':'06-finance','07':'07-customers','08':'08-ai-team','09':'09-ai-chat',
+  '10':'10-home-tablet','11':'11-orders-tablet','12':'12-products-tablet','13':'13-content-tablet',
+  '14':'14-finance-tablet','15':'15-customers-tablet','16':'16-ai-tablet'
+};
+function card([num,name,file]){
+  return `<figure><div class="shot"><img src="screens/${slug[num]}.png" alt="${name}" loading="lazy"></div>
+    <figcaption><div class="cap-row"><span class="num">${num}</span><span class="name">${name}</span></div>
+    <div class="file">${file}</div></figcaption></figure>`;
+}
+document.getElementById('m').innerHTML = mobile.map(card).join('');
+document.getElementById('t').innerHTML = tablet.map(card).join('');
+</script>
+</body>
+</html>

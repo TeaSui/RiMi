@@ -52,12 +52,14 @@ final syncFlusherProvider = Provider<SyncFlusher>((ref) {
   );
 
   // Trigger flush on connectivity change to online.
+  // Cancel subscription on dispose to prevent timer leaks in tests.
   final watcher = ref.watch(connectivityWatcherProvider);
-  watcher.status.listen((status) {
+  final sub = watcher.status.listen((status) {
     if (status == NetworkStatus.online) {
       flusher.flush().ignore();
     }
   });
+  ref.onDispose(sub.cancel);
 
   return flusher;
 });

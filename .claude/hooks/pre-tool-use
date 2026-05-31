@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# PreToolUse hook: dedup and truncate Read calls to reduce context flooding.
+# Spec: docs/specs/2026-05-21-token-reduction-design.md
+#
+# On Read:
+#   cache HIT  → block with "[FILE ALREADY IN CONTEXT: ...]" marker
+#   cache MISS → read file (truncated to HOOK_READ_MAX_BYTES), block with content
+# All other tools → {"decision":"approve"}
+#
+# Fail-open: any error → {"decision":"approve"} so Claude is never silently blocked.
+
+set -euo pipefail
+
+# Read stdin fully
+INPUT=$(cat)
+
+# Fast path: only handle Read tool — pipe through stdin to avoid argv quoting issues
+TOOL_NAME=$(printf '%s' "$INPUT" | /usr/bin/python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get('tool_name', ''))
+except:
+    print('')
+" 2>/dev/null) || { printf '{"decision":"approve"}'; exit 0; }
+
+if [ "$TOOL_NAME" != "Read" ]; then
+    printf '{"decision":"approve"}'
+    exit 0
+fi
+
+# Parse Read inputs — pipe through stdin to avoid argv quoting issues
+PARSED=$(printf '%s' "$INPUT" | /usr/bin/python3 -c "
+import sys, json, os
+
+try:
+    d = json.load(sys.stdin)
+    inp = d.get('tool_input', {})
+    session_id = d.get('session_id', 'default')
+    file_path = inp.get('file_path', '')
+    offset = str(inp.get('offset') or 'none')
+    limit = str(inp.get('limit') or 'none')
+
+    if not file_path:
+        print('ERROR')
+        sys.exit(0)
+
+    real_path = os.path.realpath(file_path)
+    print(real_path)
+    print(session_id)
+    print(offset)
+    print(limit)
+except Exception as e:
+    print('ERROR')
+" 2>/dev/null) || { printf '{"decision":"approve"}'; exit 0; }
+
+# If parse failed, fail open
+if [ "$(printf '%s\n' "$PARSED" | head -1)" = "ERROR" ]; then
+    printf '{"decision":"approve"}'
+    exit 0
+fi
+
+# Read four lines from PARSED into separate variables (bash 3.2 compatible, zero subprocesses)
+{
+    IFS= read -r REAL_PATH || true
+    IFS= read -r SESSION_ID || true
+    IFS= read -r OFFSET    || true
+    IFS= read -r LIMIT     || true
+} <<< "$PARSED"
+
+# Guard: file must exist
+if [ ! -f "$REAL_PATH" ]; then
+    printf '{"decision":"approve"}'
+    exit 0
+fi
+
+# Get mtime (macOS BSD stat)
+MTIME=$(stat -f "%m" "$REAL_PATH" 2>/dev/null) || { printf '{"decision":"approve"}'; exit 0; }
+
+# Cache key and cache file
+CACHE_KEY="${REAL_PATH}:${MTIME}:${OFFSET}:${LIMIT}"
+SAFE_SESSION_ID="${SESSION_ID//[^a-zA-Z0-9_-]/}"
+CACHE_FILE="/tmp/claude-read-cache-${SAFE_SESSION_ID:-default}"
+
+# Check for cache hit
+if [ -f "$CACHE_FILE" ] && grep -qF "$CACHE_KEY" "$CACHE_FILE" 2>/dev/null; then
+    TURN=$(grep -F "$CACHE_KEY" "$CACHE_FILE" | head -1 | cut -f2)
+    REASON="[FILE ALREADY IN CONTEXT: ${REAL_PATH} (cached at ${TURN}, mtime ${MTIME}). Use offset+limit to read a different range.]"
+    printf '%s' "$REASON" | /usr/bin/python3 -c "
+import json, sys
+print(json.dumps({'decision': 'block', 'reason': sys.stdin.read()}))
+" || { printf '{"decision":"approve"}'; exit 0; }
+    exit 0
+fi
+
+# Cache miss: read file (with optional truncation)
+MAX_BYTES="${HOOK_READ_MAX_BYTES:-8000}"
+
+CONTENT=$(printf '%s\n%s\n%s\n%s' "$REAL_PATH" "$OFFSET" "$LIMIT" "$MAX_BYTES" | /usr/bin/python3 -c "
+import sys, json
+
+lines = sys.stdin.read().splitlines()
+file_path = lines[0]
+offset    = lines[1]
+limit     = lines[2]
+max_bytes = int(lines[3])
+
+try:
+    with open(file_path, 'r', errors='replace') as f:
+        if offset != 'none':
+            all_lines = f.readlines()
+            start = int(offset)
+            end = (start + int(limit)) if limit != 'none' else len(all_lines)
+            text = ''.join(all_lines[start:end])
+        else:
+            text = f.read()
+
+    original_len = len(text.encode('utf-8'))
+
+    if original_len > max_bytes:
+        encoded = text.encode('utf-8')[:max_bytes]
+        text = encoded.decode('utf-8', errors='ignore')
+        text += f'\n[...{original_len - max_bytes} bytes omitted. Re-read with offset+limit to read a specific section.]'
+
+    print(json.dumps(text))
+except Exception as e:
+    print(json.dumps(f'[HOOK READ ERROR: {e}]'))
+" 2>/dev/null) || { printf '{"decision":"approve"}'; exit 0; }
+
+# Write to cache atomically (tmp + mv, no flock needed on macOS APFS)
+TURN_LABEL="turn-$(date +%s)"
+{
+    TMP_CACHE=$(mktemp /tmp/claude-read-cache-XXXXXX)
+    printf '%s\t%s\t%s\n' "$CACHE_KEY" "$TURN_LABEL" "$MTIME" > "$TMP_CACHE"
+    cat "$CACHE_FILE" >> "$TMP_CACHE" 2>/dev/null || true
+    mv "$TMP_CACHE" "$CACHE_FILE"
+} || true
+
+# Return file content as block reason
+printf '%s' "$CONTENT" | /usr/bin/python3 -c "
+import json, sys
+content = json.loads(sys.stdin.read())
+print(json.dumps({'decision': 'block', 'reason': content}))
+" || { printf '{"decision":"approve"}'; exit 0; }

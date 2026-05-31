@@ -1,0 +1,1043 @@
+openapi: 3.1.0
+info:
+  title: RiMi Auth & Workspace API
+  version: 1.0.0
+  description: >
+    Phase 1 (Foundation) contract for RiMi: authentication, email verification,
+    password reset, session lifecycle, and workspace create/switch with
+    multi-tenant isolation.
+
+    This document is the single source of truth for the Go backend implementer
+    and the Flutter implementer. It MUST be honored alongside the Security rules
+    in docs/security/phase-1-auth-workspace.md (AUTH-*, SESSION-*, TENANCY-*,
+    EMAIL-*, INPUT-*, PII-*, NET-*, SECRETS-*, CLIENT-*, LOG-*).
+
+    RESPONSE ENVELOPE (mandatory, project rule patterns.md):
+      success: { "data": <payload>, "meta": { "timestamp": "<iso8601>" } }
+      error:   { "error": { "code": "<MACHINE_CODE>", "message": "<human>", "details": [] } }
+
+    NAMING: JSON fields are snake_case; URL paths are kebab-case; error codes are
+    SCREAMING_SNAKE_CASE; schema names are PascalCase.
+
+    ANTI-ENUMERATION (AUTH-02/03/04, EMAIL-04/05): login and password-reset-request
+    responses are intentionally indistinguishable for known vs unknown / verified vs
+    unverified accounts. Implementers MUST NOT add status/body variation that leaks
+    account existence or verification state.
+
+servers:
+  - url: https://api.rimi.example/v1
+    description: Production (TLS 1.2+, NET-01)
+  - url: http://localhost:8080/v1
+    description: Local dev (compose stack; plaintext permitted local-only per NET-01)
+
+tags:
+  - name: health
+  - name: auth
+  - name: workspace
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Liveness/readiness probe
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthEnvelope"
+        "503":
+          description: Service degraded (e.g., DB unreachable)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Register a new user (AUTH-01)
+      description: >
+        Creates a user with email_verified=false and a profile. Sends an email
+        verification token (single-use, hashed-at-rest, expiring — EMAIL-01/02/03).
+        Server-controlled fields (email_verified, role, id, timestamps) are set
+        server-side and ignored if supplied (AUTH-13, INPUT-04).
+        Anti-enumeration (AUTH-03): an already-registered email returns the SAME
+        success-shaped response as a fresh registration (no "email exists" leak).
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "202":
+          description: >
+            Accepted. Verification email dispatched if the email was not already
+            registered. Response is identical regardless (AUTH-03).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterAcceptedEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/verify-email:
+    post:
+      tags: [auth]
+      summary: Verify email with a single-use token (AUTH-02)
+      description: >
+        Consumes a verification token from the request body (EMAIL-06: never a
+        query string). Token is single-use, invalidated atomically (EMAIL-02),
+        and must be unexpired (EMAIL-03). On success, sets email_verified=true.
+      operationId: verifyEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyEmailRequest"
+      responses:
+        "200":
+          description: Email verified.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyEmailEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "410":
+          description: Token invalid, already used, or expired.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                expired:
+                  value:
+                    error:
+                      code: TOKEN_INVALID_OR_EXPIRED
+                      message: This verification link is no longer valid.
+                      details: []
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Authenticate and obtain access + refresh tokens (AUTH-01, AUTH-04)
+      description: >
+        Returns an access JWT (~15m, RS256) and an opaque refresh token. Rejects
+        unverified accounts (AUTH-02) and wrong passwords with the SAME generic
+        INVALID_CREDENTIALS 401 (AUTH-02/03). Per-account lockout with progressive
+        backoff (AUTH-04) returns ACCOUNT_LOCKED (429) without leaking existence
+        differently than a non-existent account under the same backoff.
+        A user with no workspace receives an access token whose workspace_id claim
+        is null (see TokenPair / AccessTokenClaims).
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated. Token pair issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPairEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Generic auth failure (wrong password, unknown account, or unverified — indistinguishable, AUTH-02/03).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                invalid:
+                  value:
+                    error:
+                      code: INVALID_CREDENTIALS
+                      message: Email or password is incorrect.
+                      details: []
+        "429":
+          description: Rate-limited or account locked (AUTH-04, RATE-01/02).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                locked:
+                  value:
+                    error:
+                      code: ACCOUNT_LOCKED
+                      message: Too many attempts. Please try again later.
+                      details: []
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate refresh token and obtain a new token pair (AUTH-04, SESSION-03/04)
+      description: >
+        Presents an opaque refresh token. On success, ATOMICALLY rotates: the
+        presented token is invalidated and a new refresh token is issued in the
+        same family (SESSION-03). A new access token is issued carrying the same
+        workspace_id claim the session currently holds.
+        REUSE DETECTION (SESSION-04): presenting an already-rotated/revoked token
+        is treated as theft — the ENTIRE family is revoked and the request is
+        rejected with REFRESH_TOKEN_REUSED (401). A high-severity audit event is
+        emitted (LOG-02).
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Rotated. New token pair issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPairEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: >
+            Refresh token invalid, expired, already rotated (reuse → family revoked),
+            or revoked by logout/password-reset.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                expired_or_revoked:
+                  value:
+                    error:
+                      code: REFRESH_TOKEN_INVALID
+                      message: Session expired. Please sign in again.
+                      details: []
+                reused:
+                  value:
+                    error:
+                      code: REFRESH_TOKEN_REUSED
+                      message: Session expired. Please sign in again.
+                      details: []
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Revoke the presented refresh-token family (AUTH-04, SESSION-06)
+      description: >
+        Server-side revocation of the refresh-token family (not merely dropping
+        the client copy). Idempotent: revoking an already-revoked family still
+        returns 200. The client clears secure storage (CLIENT-02).
+      operationId: logout
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Family revoked (idempotent).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/password-reset/request:
+    post:
+      tags: [auth]
+      summary: Request a password-reset email (AUTH-03)
+      description: >
+        ALWAYS returns the same success response { sent: true } regardless of
+        whether the email exists (EMAIL-04). Timing is normalized (EMAIL-05).
+        If the account exists, a single-use, hashed-at-rest, short-lived reset
+        token is emailed (EMAIL-01/02/03).
+      operationId: requestPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+      responses:
+        "200":
+          description: "Always { sent: true } (anti-enumeration, EMAIL-04)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordResetRequestEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/password-reset/confirm:
+    post:
+      tags: [auth]
+      summary: Confirm a password reset with a single-use token (AUTH-03, AUTH-09)
+      description: >
+        Consumes the reset token from the body (EMAIL-06). Token single-use
+        (EMAIL-02), unexpired (EMAIL-03). Enforces the server-side password policy
+        (AUTH-05). On success, ALL of the user's refresh-token families are revoked
+        (AUTH-09, SESSION-06) — every existing session is invalidated.
+      operationId: confirmPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetConfirmRequest"
+      responses:
+        "200":
+          description: Password changed; all sessions revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasswordResetConfirmEnvelope"
+        "400":
+          description: Validation error OR weak password (AUTH-05).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                weak:
+                  value:
+                    error:
+                      code: WEAK_PASSWORD
+                      message: Password does not meet the minimum requirements.
+                      details:
+                        - field: new_password
+                          issue: too_short
+        "410":
+          description: Reset token invalid, used, or expired.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                expired:
+                  value:
+                    error:
+                      code: TOKEN_INVALID_OR_EXPIRED
+                      message: This reset link is no longer valid.
+                      details: []
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Hydrate the current session (AUTH-04, client bootstrap)
+      description: >
+        Returns the authenticated user's profile and the active workspace_id
+        derived from the validated JWT claim (TENANCY-05). active_workspace_id is
+        null for a user with no workspace.
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workspaces:
+    post:
+      tags: [workspace]
+      summary: Create a workspace (AUTH-05)
+      description: >
+        Creates a workspace and a workspace_members row with role=owner for the
+        caller (AUTH-13: role set server-side). Returns a NEW access token whose
+        workspace_id claim is the new workspace (the caller's active workspace
+        becomes the created one). The refresh token is unchanged (it is
+        session-scoped, not workspace-scoped). The id MAY be client-supplied
+        (offline-first, client-generated UUID); if omitted the server generates one.
+      operationId: createWorkspace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkspaceRequest"
+      responses:
+        "201":
+          description: Workspace created; new workspace-scoped access token returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceCreatedEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: A workspace with the supplied client id already exists (idempotency conflict).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                conflict:
+                  value:
+                    error:
+                      code: WORKSPACE_ID_CONFLICT
+                      message: A workspace with this id already exists.
+                      details: []
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    get:
+      tags: [workspace]
+      summary: List the caller's workspace memberships (AUTH-06)
+      description: >
+        Returns workspaces the caller is a member of, derived from the validated
+        identity (TENANCY-05/09). Returns an empty list for a user with no
+        workspace. This endpoint does NOT require an active-workspace claim.
+      operationId: listWorkspaces
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Membership list (possibly empty).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceListEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workspaces/{id}/switch:
+    post:
+      tags: [workspace]
+      summary: Switch active workspace (AUTH-06, sole membership gate — TENANCY-08, SESSION-08)
+      description: >
+        The SOLE membership gate. Verifies the caller is a member of {id}, then
+        re-issues a NEW access token carrying workspace_id={id}. The server NEVER
+        reads active-workspace from a client header/body/query (SESSION-08,
+        CLIENT-04). A request to switch to a non-member workspace returns
+        WORKSPACE_FORBIDDEN (403) — never a token. The refresh token is unchanged.
+      operationId: switchWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Target workspace UUID.
+          schema:
+            $ref: "#/components/schemas/Uuid"
+      responses:
+        "200":
+          description: Switched; new workspace-scoped access token returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceSwitchedEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Caller is not a member of the target workspace (TENANCY-08).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              examples:
+                forbidden:
+                  value:
+                    error:
+                      code: WORKSPACE_FORBIDDEN
+                      message: You do not have access to this workspace.
+                      details: []
+        "404":
+          description: Workspace does not exist. MUST be indistinguishable from 403 to non-members to avoid existence leak; implementers MAY collapse 404 into 403 WORKSPACE_FORBIDDEN.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        RS256-signed access JWT (AUTH-10/11). Verifier pins alg=RS256, rejects
+        none/HS256, validates signature, exp, iss, aud (AUTH-11). The active
+        workspace is read ONLY from the workspace_id claim (TENANCY-05, SESSION-08).
+
+  responses:
+    ValidationError:
+      description: Request failed boundary validation (INPUT-03/04).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          examples:
+            invalid:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: One or more fields are invalid.
+                  details:
+                    - field: email
+                      issue: invalid_format
+    Unauthorized:
+      description: Missing, malformed, expired, or otherwise invalid access token (AUTH-11).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          examples:
+            unauthorized:
+              value:
+                error:
+                  code: UNAUTHORIZED
+                  message: Authentication required.
+                  details: []
+    PayloadTooLarge:
+      description: Request body exceeded the size cap (INPUT-05).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          examples:
+            toobig:
+              value:
+                error:
+                  code: PAYLOAD_TOO_LARGE
+                  message: Request body is too large.
+                  details: []
+    RateLimited:
+      description: Too many requests (RATE-01/02/03).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          examples:
+            rate:
+              value:
+                error:
+                  code: RATE_LIMITED
+                  message: Too many requests. Please slow down.
+                  details: []
+    InternalError:
+      description: Generic server error (INPUT-06, LOG-04 — no internals leaked).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          examples:
+            internal:
+              value:
+                error:
+                  code: INTERNAL_ERROR
+                  message: Something went wrong. Please try again.
+                  details: []
+
+  schemas:
+    # ---- Envelope primitives ----
+    Meta:
+      type: object
+      required: [timestamp]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 server timestamp.
+          examples: ["2026-05-31T08:30:00Z"]
+      additionalProperties: false
+
+    ErrorBody:
+      type: object
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          description: Machine-readable SCREAMING_SNAKE_CASE error code (see catalog).
+          examples: ["INVALID_CREDENTIALS"]
+        message:
+          type: string
+          description: Human-readable, non-revealing message (INPUT-06, PII-02).
+        details:
+          type: array
+          description: Optional per-field detail; empty array when not applicable.
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+      additionalProperties: false
+
+    ErrorDetail:
+      type: object
+      required: [field, issue]
+      properties:
+        field:
+          type: string
+          examples: ["email"]
+        issue:
+          type: string
+          examples: ["invalid_format"]
+      additionalProperties: false
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+      additionalProperties: false
+
+    Uuid:
+      type: string
+      format: uuid
+      description: Client-supplied or server-generated UUID (offline-first).
+      examples: ["7c9e6679-7425-40de-944b-e07fc1f90ae7"]
+
+    # ---- Shared domain objects ----
+    Profile:
+      type: object
+      required: [id, email, display_name, phone, email_verified, created_at]
+      properties:
+        id:
+          $ref: "#/components/schemas/Uuid"
+        email:
+          type: string
+          format: email
+          description: Level 2 PII (do not log raw — PII-01).
+        display_name:
+          type: string
+          description: Level 2 PII.
+        phone:
+          type: ["string", "null"]
+          description: Level 2 PII; nullable (PII-03 minimization).
+        email_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    Workspace:
+      type: object
+      required: [id, name, role, created_at]
+      properties:
+        id:
+          $ref: "#/components/schemas/Uuid"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        role:
+          type: string
+          enum: [owner, member]
+          description: The CALLER's role in this workspace (server-asserted).
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in, active_workspace_id]
+      properties:
+        access_token:
+          type: string
+          description: RS256 JWT (~15m). Claims per AccessTokenClaims.
+        refresh_token:
+          type: string
+          description: >
+            Opaque 256-bit CSPRNG token (SESSION-05). Stored hashed server-side
+            (SESSION-02). Client stores in secure storage only (CLIENT-01).
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Access-token lifetime in seconds (~900, AUTH-12).
+          examples: [900]
+        active_workspace_id:
+          type: ["string", "null"]
+          format: uuid
+          description: >
+            Convenience mirror of the access token's workspace_id claim. NULL when
+            the user has no workspace yet. Clients MUST treat the token claim as
+            authoritative, not this field.
+      additionalProperties: false
+
+    AccessTokenClaims:
+      type: object
+      description: >
+        DOCUMENTATION-ONLY schema describing the decoded RS256 access-token
+        payload. Not a request/response body. Both implementers build against this.
+      required: [iss, aud, sub, iat, exp, workspace_id]
+      properties:
+        iss:
+          type: string
+          description: Issuer (AUTH-11 validated). e.g., "rimi-auth".
+        aud:
+          type: string
+          description: Audience (AUTH-11 validated). e.g., "rimi-api".
+        sub:
+          type: string
+          format: uuid
+          description: User id (maps to rimi.user_id GUC — TENANCY-06).
+        iat:
+          type: integer
+          description: Issued-at (epoch seconds).
+        exp:
+          type: integer
+          description: Expiry (epoch seconds); exp-iat ~= 900 (AUTH-12).
+        workspace_id:
+          type: ["string", "null"]
+          format: uuid
+          description: >
+            Active workspace (maps to rimi.workspace_id GUC — TENANCY-06).
+            NULL when the user has no active workspace; workspace-scoped endpoints
+            then return empty (TENANCY-07 fail-closed). Re-issued at create/switch
+            (SESSION-08). NEVER sourced from a client header (CLIENT-04).
+      additionalProperties: true
+
+    # ---- /health ----
+    HealthEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [status]
+          properties:
+            status:
+              type: string
+              enum: [ok]
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /auth/register ----
+    RegisterRequest:
+      type: object
+      required: [email, password, display_name]
+      description: >
+        Allow-listed fields only (INPUT-04). Any email_verified/role/id/created_at
+        in the body is IGNORED (AUTH-13).
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 8
+          maxLength: 256
+          description: Server-side policy enforced (AUTH-05).
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          type: ["string", "null"]
+          maxLength: 20
+      additionalProperties: false
+
+    RegisterAcceptedEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [registered]
+          properties:
+            registered:
+              type: boolean
+              const: true
+              description: >
+                ALWAYS true (AUTH-03). Does NOT confirm a new account was created —
+                an existing email yields the same response without leaking existence.
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /auth/verify-email ----
+    VerifyEmailRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Raw verification token from the email (consumed in body, EMAIL-06).
+          minLength: 16
+          maxLength: 512
+      additionalProperties: false
+
+    VerifyEmailEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [verified]
+          properties:
+            verified:
+              type: boolean
+              const: true
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /auth/login ----
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 256
+      additionalProperties: false
+
+    TokenPairEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/TokenPair"
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /auth/refresh & /auth/logout ----
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          minLength: 16
+          maxLength: 512
+      additionalProperties: false
+
+    LogoutEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [revoked]
+          properties:
+            revoked:
+              type: boolean
+              const: true
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /auth/password-reset/* ----
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+      additionalProperties: false
+
+    PasswordResetRequestEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [sent]
+          properties:
+            sent:
+              type: boolean
+              const: true
+              description: ALWAYS true regardless of account existence (EMAIL-04).
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    PasswordResetConfirmRequest:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+          description: Raw reset token from the email (consumed in body, EMAIL-06).
+          minLength: 16
+          maxLength: 512
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 256
+          description: Server-side password policy enforced (AUTH-05).
+      additionalProperties: false
+
+    PasswordResetConfirmEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [reset]
+          properties:
+            reset:
+              type: boolean
+              const: true
+              description: Password changed; all sessions revoked (AUTH-09).
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /auth/me ----
+    MeEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [profile, active_workspace_id]
+          properties:
+            profile:
+              $ref: "#/components/schemas/Profile"
+            active_workspace_id:
+              type: ["string", "null"]
+              format: uuid
+              description: From the validated JWT claim (TENANCY-05); null if none.
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /workspaces (POST) ----
+    CreateWorkspaceRequest:
+      type: object
+      required: [name]
+      properties:
+        id:
+          $ref: "#/components/schemas/Uuid"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+      additionalProperties: false
+
+    WorkspaceCreatedEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [workspace, tokens]
+          properties:
+            workspace:
+              $ref: "#/components/schemas/Workspace"
+            tokens:
+              $ref: "#/components/schemas/TokenPair"
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /workspaces (GET) ----
+    WorkspaceListEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [workspaces]
+          properties:
+            workspaces:
+              type: array
+              items:
+                $ref: "#/components/schemas/Workspace"
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false
+
+    # ---- /workspaces/{id}/switch ----
+    WorkspaceSwitchedEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [workspace, tokens]
+          properties:
+            workspace:
+              $ref: "#/components/schemas/Workspace"
+            tokens:
+              $ref: "#/components/schemas/TokenPair"
+          additionalProperties: false
+        meta:
+          $ref: "#/components/schemas/Meta"
+      additionalProperties: false

@@ -34,12 +34,11 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Supabase (PostgreSQL + Auth + Storage + Realtime + Edge Functions) |
+| Backend | Go + Postgres (self-hosted); chi router; golang-migrate; pgx |
 | Frontend | Flutter (iOS + Android) |
-| Edge Functions | TypeScript only |
-| Offline sync | Supabase offline-first with client-generated UUIDs |
-| Realtime | Supabase Realtime (Orders + Inventory channels) |
-| AI | Claude API (agents: Sales, Content, Finance) |
+| Offline sync | Offline-first with client-generated UUIDs; Drift local DB (Phase 2) |
+| Realtime | TBD — WebSocket/SSE (Phase 4); Postgres LISTEN/NOTIFY or dedicated service |
+| AI | Claude API via Supabase Edge Functions or Go proxy (decided in Phase 7) |
 
 ## Key Integrations
 
@@ -91,19 +90,20 @@
 
 | # | Decision | Rationale | Date |
 |---|----------|-----------|------|
-| 1 | Supabase as backend | Full BaaS: auth, DB, realtime, storage, edge functions in one; no infra management | 2026-05-31 |
+| 1 | Go + Postgres as backend (self-hosted) | Best fit for per-request Postgres RLS via SET LOCAL, webhook/offline-sync surface, and ops simplicity. Supersedes the initial Supabase decision. See docs/contracts/README.md ADR-002. | 2026-05-31 |
 | 2 | Flutter for mobile | Cross-platform iOS + Android; strong offline support; single codebase | 2026-05-31 |
 | 3 | Client-generated UUIDs | Required for offline-first — creates before sync | 2026-05-31 |
-| 4 | Workspace-scoped RLS | Multi-tenancy isolation from day one | 2026-05-31 |
-| 5 | TypeScript for Edge Functions | Standardized; best Supabase tooling support | 2026-05-31 |
+| 4 | Workspace-scoped RLS + app-layer guard | Defense-in-depth tenancy: Postgres RLS via SET LOCAL GUC + repository-layer scoping. Two DB roles: rimi_migrator (owner) + rimi_app (NOSUPERUSER NOBYPASSRLS). See docs/security/phase-1-auth-workspace.md TENANCY rules. | 2026-05-31 |
+| 5 | All-tables-upfront schema | Full 8-phase schema created in Phase 1 with workspace_id + RLS on every table; later phases add columns/logic via ALTER TABLE | 2026-05-31 |
 | 6 | E-invoice as optional module | Not all sellers need compliance immediately; reduces onboarding friction | 2026-05-31 |
+| 7 | Active workspace as signed JWT claim | Workspace_id carried in RS256 access token, re-issued at /workspaces/{id}/switch (sole membership gate). NOT a client header. See docs/contracts/README.md ADR-001. | 2026-05-31 |
 
 ## Constraints
 
 - VND currency only (for v1)
 - Vietnam market only (for v1)
 - Mobile-first (Flutter); no web dashboard in v1
-- Supabase free/pro tier for early stage; no custom infra
+- Self-hosted Go+Postgres; no vendor BaaS lock-in
 - No multi-currency, no multi-language (Vietnamese UI only in v1)
 
 ## Success Metrics

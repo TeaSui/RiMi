@@ -6,7 +6,7 @@ RiMi is built in 8 phases, ordered by strict dependency: foundation → offline 
 
 ## Phases
 
-- [ ] **Phase 1: Foundation** — Supabase schema, RLS, Flutter auth + workspace setup
+- [x] **Phase 1: Foundation** — Go+Postgres schema, RLS, Flutter auth + workspace setup
 - [ ] **Phase 2: Offline Core** — Drift local DB, SyncManager, Realtime infrastructure
 - [ ] **Phase 3: Products & Inventory** — Product catalog, variants, stock tracking
 - [ ] **Phase 4: Orders** — Unified inbox, offline POS, ShopeeFood + GrabFood webhook ingestion
@@ -30,9 +30,9 @@ RiMi is built in 8 phases, ordered by strict dependency: foundation → offline 
 **Plans**: TBD
 
 Plans:
-- [ ] 01-01: Supabase schema — all tables, indexes, RLS policies, CI check
-- [ ] 01-02: Flutter auth flow — signup, email verify, login, session persistence
-- [ ] 01-03: Workspace creation and switching UI
+- [x] 01-01: Go+Postgres schema — all tables, indexes, RLS policies, CI gate (server/migrations/)
+- [x] 01-02: Flutter auth flow — signup, email verify, login, session persistence (flutter/lib/core/auth/, flutter/lib/features/auth/)
+- [x] 01-03: Workspace creation and switching UI (flutter/lib/features/workspace/)
 
 ### Phase 2: Offline Core
 **Goal**: Scaffold the offline-first infrastructure: Drift local DB (mirroring Supabase schema), background SyncManager, central RealtimeManager, and connectivity awareness. Every subsequent feature will use these primitives.
@@ -165,7 +165,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Not started | - |
+| 1. Foundation | 3/3 | Complete | 2026-05-31 |
 | 2. Offline Core | 0/3 | Not started | - |
 | 3. Products & Inventory | 0/3 | Not started | - |
 | 4. Orders | 0/6 | Not started | - |

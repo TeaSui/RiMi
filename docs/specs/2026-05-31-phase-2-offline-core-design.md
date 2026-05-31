@@ -102,11 +102,11 @@ Cursor is committed atomically only after all rows in a pull page are successful
 
 ```sql
 CREATE INDEX idx_sync_ops_flush
-  ON sync_operations(workspace_id, next_retry_at, created_at)
+  ON sync_operations(workspace_id, created_at)
   WHERE status = 'pending';
 ```
 
-Index covers the full dequeue query: `workspace_id` filters, `next_retry_at` satisfies the eligibility predicate, `created_at` supports the `ORDER BY created_at ASC` sort without a separate pass.
+Index preserves FIFO order: `workspace_id` filters, `created_at` drives the `ORDER BY created_at ASC` sort. The `next_retry_at` eligibility predicate (`IS NULL OR next_retry_at <= now()`) is evaluated as a filter on the already-small pending set — no index needed for this low-cardinality secondary condition.
 
 ---
 
@@ -177,14 +177,20 @@ CREATE TABLE sync_applied_ops (
 CREATE INDEX idx_sync_applied_ops_ttl ON sync_applied_ops(applied_at);
 ```
 
-**TTL cleanup:** background job (or pg_cron) deletes rows older than 7 days. Safe because client `retry_count` max is 3 with exponential backoff — no legitimate retry arrives after 7 days.
+**TTL cleanup:** background job (or pg_cron) deletes rows older than 90 days.
+
+**Client expiry rule (binding constraint):** on app startup, before any flush, ops with `created_at < now() - 30 days` are auto-failed (`status = 'failed'`, `last_error = 'op_expired'`). The app surfaces a data-check prompt to the user. This ensures no client ever submits an op older than 30 days, so the 90-day server ledger always covers any possible retry. The dangerous case — app offline for months, ledger row deleted, retry double-applies — cannot occur.
 
 **Handler contract:** within a single Postgres transaction —
-1. Lock: `pg_advisory_xact_lock(hashtext(op_id))`
-2. Check `sync_applied_ops` — return cached result if exists
-3. Apply operation
-4. Insert result into `sync_applied_ops`
-5. Commit
+1. For each op in the batch: check `sync_applied_ops` for `(workspace_id, op_id)`
+2. Partition ops into **cached** (already applied) and **fresh** (not yet applied)
+3. For `inventory_delta` aggregation: sum deltas from **fresh ops only**; cached ops' deltas are excluded from the sum
+4. Apply fresh ops (advisory lock per `entity_id`, delta sum)
+5. Insert results for fresh ops into `sync_applied_ops`
+6. Commit
+7. Return: cached ops → their stored `result` payload; fresh ops → newly computed result
+
+**Mixed batch example:** batch contains op A (cached, delta=-2) and op B (fresh, delta=-3) for the same `entity_id`. Server applies delta=-3 only; quantity decrements by 3. Response returns cached result for A (from ledger) and new result for B. The -2 is not double-counted.
 
 ### Migration 000003 — `updated_at` + soft-delete (Phase 2 scope)
 

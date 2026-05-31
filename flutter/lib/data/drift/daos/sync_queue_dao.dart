@@ -81,6 +81,22 @@ class SyncQueueDao extends DatabaseAccessor<AppDatabase>
     ));
   }
 
+  Future<void> markRetry(
+    String opId, {
+    required int retryCount,
+    required int nextRetryAt,
+    required int nowMs,
+  }) {
+    return (update(syncOperations)..where((tbl) => tbl.opId.equals(opId)))
+        .write(SyncOperationsCompanion(
+      status: const Value('pending'),
+      inflightSince: const Value(null),
+      retryCount: Value(retryCount),
+      nextRetryAt: Value(nextRetryAt),
+      updatedAt: Value(nowMs),
+    ));
+  }
+
   Future<int> deleteDone(String opId) {
     return (delete(syncOperations)..where((tbl) => tbl.opId.equals(opId))).go();
   }

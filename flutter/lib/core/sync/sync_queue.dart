@@ -1,8 +1,9 @@
 import 'package:drift/drift.dart';
 
 import '../../data/drift/app_database.dart';
+import 'sync_flusher.dart';
 
-class SyncQueue {
+class SyncQueue implements FlushQueue {
   SyncQueue(this.db);
 
   final AppDatabase db;
@@ -28,6 +29,7 @@ class SyncQueue {
   }
 
   /// Returns the opIds of pending operations eligible for flushing.
+  @override
   Future<List<String>> dequeueOpIds(
     String workspaceId, {
     required int nowMs,
@@ -41,6 +43,7 @@ class SyncQueue {
     return ops.map((op) => op.opId).toList();
   }
 
+  @override
   Future<int> expireOldPendingOps({
     required int nowMs,
     required int maxAgeMs,
@@ -49,10 +52,12 @@ class SyncQueue {
         .expireOldPendingOps(nowMs: nowMs, maxAgeMs: maxAgeMs);
   }
 
+  @override
   Future<void> markInflight(List<String> opIds, {required int nowMs}) {
     return db.syncQueueDao.markInflight(opIds, nowMs: nowMs);
   }
 
+  @override
   Future<void> markFailed(
     String opId, {
     required String error,
@@ -61,6 +66,18 @@ class SyncQueue {
     return db.syncQueueDao.markFailed(opId, error: error, nowMs: nowMs);
   }
 
+  @override
+  Future<void> markRetry(
+    String opId, {
+    required int retryCount,
+    required int nextRetryAt,
+    required int nowMs,
+  }) {
+    return db.syncQueueDao
+        .markRetry(opId, retryCount: retryCount, nextRetryAt: nextRetryAt, nowMs: nowMs);
+  }
+
+  @override
   Future<void> deleteDone(String opId) {
     return db.syncQueueDao.deleteDone(opId);
   }

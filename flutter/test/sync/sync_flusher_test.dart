@@ -61,6 +61,20 @@ void main() {
 
     expect(queue.failedOps.keys, contains('op-reject'));
   });
+
+  test('network error calls markRetry for inflight ops', () async {
+    final queue = FakeFlushQueue(opIds: ['op-1']);
+    final flusher = SyncFlusher(
+      workspaceId: 'workspace-a',
+      queue: queue,
+      client: ThrowingSyncClient(),
+      clockMs: () => 5000,
+    );
+
+    await flusher.flush();
+
+    expect(queue.retryCalledFor, contains('op-1'));
+  });
 }
 
 class FakeFlushQueue implements FlushQueue {
@@ -71,6 +85,7 @@ class FakeFlushQueue implements FlushQueue {
   final List<String> inflightMarked = [];
   final List<String> deletedDone = [];
   final Map<String, String> failedOps = {};
+  final List<String> retryCalledFor = [];
 
   @override
   Future<List<String>> dequeueOpIds(
@@ -110,7 +125,9 @@ class FakeFlushQueue implements FlushQueue {
     required int retryCount,
     required int nextRetryAt,
     required int nowMs,
-  }) async {}
+  }) async {
+    retryCalledFor.add(opId);
+  }
 
   @override
   Future<void> deleteDone(String opId) async {
@@ -142,5 +159,12 @@ class FakeSyncClient implements SyncClient {
               : null,
         ),
     ];
+  }
+}
+
+class ThrowingSyncClient implements SyncClient {
+  @override
+  Future<List<SyncOpResult>> postBatch(List<String> opIds) async {
+    throw Exception('network error');
   }
 }

@@ -75,7 +75,21 @@ class SyncFlusher {
 
     await queue.markInflight(opIds, nowMs: now);
 
-    final results = await client.postBatch(opIds);
+    List<SyncOpResult> results;
+    try {
+      results = await client.postBatch(opIds);
+    } catch (_) {
+      final nowMs2 = clockMs();
+      for (final opId in opIds) {
+        await queue.markRetry(
+          opId,
+          retryCount: 1,
+          nextRetryAt: nowMs2 + 4000,
+          nowMs: nowMs2,
+        );
+      }
+      return;
+    }
     final resultById = {for (final result in results) result.opId: result};
 
     for (final opId in opIds) {

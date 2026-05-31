@@ -28,12 +28,14 @@ class RealtimeManagerImpl implements RealtimeManager {
 
   @override
   RealtimeSubscription subscribe(String channelKey) {
-    final entry = _channels.putIfAbsent(channelKey, () {
-      final created = _ChannelEntry();
+    final existing = _channels[channelKey];
+    if (existing != null) {
+      existing.refCount++;
+    } else {
+      final created = _ChannelEntry()..refCount = 1;
+      _channels[channelKey] = created;
       _open(channelKey, created);
-      return created;
-    });
-    entry.refCount++;
+    }
     return _Subscription(() => _cancel(channelKey));
   }
 

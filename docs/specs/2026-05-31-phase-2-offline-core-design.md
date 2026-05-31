@@ -175,20 +175,26 @@ CREATE TABLE sync_applied_ops (
     PRIMARY KEY (workspace_id, op_id)
 );
 CREATE INDEX idx_sync_applied_ops_ttl ON sync_applied_ops(applied_at);
+CREATE INDEX idx_sync_applied_ops_workspace ON sync_applied_ops(workspace_id);
+ALTER TABLE sync_applied_ops ENABLE ROW LEVEL SECURITY;
+-- RLS policy: same pattern as other workspace tables (migration 000002)
+-- rimi_app role: workspace_id = current_setting('rimi.workspace_id')::uuid
 ```
+
+`sync_applied_ops` follows the same workspace-scoped RLS conventions as all other Phase 1 tables (`docs/contracts/README.md` line 34): `workspace_id` column, index on `workspace_id`, RLS enabled, `rimi_app` role policy using `rimi.workspace_id` GUC. Backend accesses it as `rimi_app`, not as a privileged role.
 
 **TTL cleanup:** background job (or pg_cron) deletes rows older than 90 days.
 
-**Client expiry rule (binding constraint):** on app startup, before any flush, ops with `created_at < now() - 30 days` are auto-failed (`status = 'failed'`, `last_error = 'op_expired'`). The app surfaces a data-check prompt to the user. This ensures no client ever submits an op older than 30 days, so the 90-day server ledger always covers any possible retry. The dangerous case — app offline for months, ledger row deleted, retry double-applies — cannot occur.
+**Client expiry rule (binding constraint):** before every flush (startup, timer, reconnect, foreground resume), ops with `created_at < now() - 30 days` are auto-failed (`status = 'failed'`, `last_error = 'op_expired'`). The app surfaces a data-check prompt to the user. This sweep runs at the flush callsite, not only on startup, so the invariant is local and obvious: no 30+ day op can ever enter a batch. The 90-day server ledger always covers any possible retry; the dangerous double-apply scenario cannot occur.
 
-**Handler contract:** within a single Postgres transaction —
-1. For each op in the batch: check `sync_applied_ops` for `(workspace_id, op_id)`
-2. Partition ops into **cached** (already applied) and **fresh** (not yet applied)
-3. For `inventory_delta` aggregation: sum deltas from **fresh ops only**; cached ops' deltas are excluded from the sum
-4. Apply fresh ops (advisory lock per `entity_id`, delta sum)
-5. Insert results for fresh ops into `sync_applied_ops`
-6. Commit
-7. Return: cached ops → their stored `result` payload; fresh ops → newly computed result
+**Handler contract:** for each op, within its own Postgres transaction —
+1. **Lock first:** `pg_advisory_xact_lock(hashtext(workspace_id || ':' || op_id))` — serializes concurrent requests for the same op before any ledger read; eliminates check-then-act race
+2. Check `sync_applied_ops` for `(workspace_id, op_id)` — return cached result immediately if found
+3. Apply the operation (for `inventory_delta`: advisory lock per `entity_id`, apply delta)
+4. Insert result into `sync_applied_ops`
+5. Commit
+
+**Batch handling:** ops in a batch are partitioned into cached and fresh before applying. For `inventory_delta` aggregation across fresh ops sharing an `entity_id`: sum fresh deltas only — cached op deltas are excluded from the sum. Cached ops' stored results are returned from the ledger unchanged.
 
 **Mixed batch example:** batch contains op A (cached, delta=-2) and op B (fresh, delta=-3) for the same `entity_id`. Server applies delta=-3 only; quantity decrements by 3. Response returns cached result for A (from ledger) and new result for B. The -2 is not double-counted.
 

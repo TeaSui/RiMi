@@ -15,10 +15,14 @@ import (
 	"github.com/go-chi/httprate"
 	"github.com/joho/godotenv"
 
+	"github.com/rimi/server/internal/ai"
 	"github.com/rimi/server/internal/auth"
 	"github.com/rimi/server/internal/config"
+	"github.com/rimi/server/internal/customers"
 	"github.com/rimi/server/internal/db"
+	"github.com/rimi/server/internal/einvoice"
 	"github.com/rimi/server/internal/email"
+	"github.com/rimi/server/internal/finance"
 	"github.com/rimi/server/internal/middleware"
 	"github.com/rimi/server/internal/orders"
 	"github.com/rimi/server/internal/products"
@@ -192,6 +196,67 @@ func main() {
 			r.Post("/", ordersHandler.CreateOrder)
 			r.Get("/{id}", ordersHandler.GetOrder)
 			r.Put("/{id}/status", ordersHandler.AdvanceStatus)
+		})
+
+		// Phase 5: CRM — customer profiles + notes.
+		customersRepo := customers.NewRepository()
+		customersHandler := customers.NewHandler(customersRepo)
+
+		r.Route("/customers", func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Use(httprate.LimitByIP(120, time.Minute))
+			r.Use(middleware.TenantTx(appPool))
+			r.Get("/", customersHandler.ListCustomers)
+			r.Post("/", customersHandler.CreateCustomer)
+			r.Get("/{id}", customersHandler.GetCustomer)
+			r.Patch("/{id}", customersHandler.UpdateCustomer)
+			r.Post("/{id}/notes", customersHandler.AddNote)
+		})
+
+		// Phase 6: Finance — income, expenses, P&L, receivables, payments.
+		financeRepo := finance.NewRepository()
+		financeHandler := finance.NewHandler(financeRepo)
+
+		r.Route("/finance", func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Use(httprate.LimitByIP(120, time.Minute))
+			r.Use(middleware.TenantTx(appPool))
+			r.Get("/income", financeHandler.ListIncome)
+			r.Post("/income", financeHandler.CreateIncome)
+			r.Get("/expenses", financeHandler.ListExpenses)
+			r.Post("/expenses", financeHandler.CreateExpense)
+			r.Get("/pl", financeHandler.GetPL)
+			r.Get("/receivables", financeHandler.ListReceivables)
+			r.Post("/receivables", financeHandler.CreateReceivable)
+			r.Put("/receivables/{id}/status", financeHandler.MarkReceivable)
+			r.Get("/payments", financeHandler.ListPayments)
+			r.Post("/payments", financeHandler.CreatePayment)
+		})
+
+		// Phase 7: AI usage logging.
+		aiRepo := ai.NewRepository()
+		aiHandler := ai.NewHandler(aiRepo)
+
+		r.Route("/ai", func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Use(httprate.LimitByIP(60, time.Minute)) // tighter: AI calls are expensive
+			r.Use(middleware.TenantTx(appPool))
+			r.Post("/usage", aiHandler.LogUsage)
+			r.Get("/usage", aiHandler.GetUsageSummary)
+		})
+
+		// Phase 8: E-invoice (hóa đơn điện tử).
+		einvoiceRepo := einvoice.NewRepository()
+		einvoiceHandler := einvoice.NewHandler(einvoiceRepo)
+
+		r.Route("/einvoices", func(r chi.Router) {
+			r.Use(middleware.Authenticate(verifier))
+			r.Use(httprate.LimitByIP(60, time.Minute))
+			r.Use(middleware.TenantTx(appPool))
+			r.Get("/", einvoiceHandler.ListInvoices)
+			r.Post("/", einvoiceHandler.CreateInvoice)
+			r.Get("/{id}", einvoiceHandler.GetInvoice)
+			r.Put("/{id}/status", einvoiceHandler.UpdateStatus)
 		})
 	})
 

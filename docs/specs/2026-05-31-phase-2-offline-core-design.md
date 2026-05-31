@@ -177,24 +177,33 @@ CREATE TABLE sync_applied_ops (
 CREATE INDEX idx_sync_applied_ops_ttl ON sync_applied_ops(applied_at);
 CREATE INDEX idx_sync_applied_ops_workspace ON sync_applied_ops(workspace_id);
 ALTER TABLE sync_applied_ops ENABLE ROW LEVEL SECURITY;
--- RLS policy: same pattern as other workspace tables (migration 000002)
--- rimi_app role: workspace_id = current_setting('rimi.workspace_id')::uuid
+ALTER TABLE sync_applied_ops FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS sync_applied_ops_workspace ON sync_applied_ops;
+CREATE POLICY sync_applied_ops_workspace ON sync_applied_ops
+    USING (app.is_workspace_member(workspace_id))
+    WITH CHECK (app.is_workspace_member(workspace_id));
 ```
 
-`sync_applied_ops` follows the same workspace-scoped RLS conventions as all other Phase 1 tables (`docs/contracts/README.md` line 34): `workspace_id` column, index on `workspace_id`, RLS enabled, `rimi_app` role policy using `rimi.workspace_id` GUC. Backend accesses it as `rimi_app`, not as a privileged role.
+`sync_applied_ops` follows the same workspace-scoped RLS conventions as all other Phase 1 workspace tables (`server/migrations/000002_rls_policies.up.sql`): `workspace_id` column, index on `workspace_id`, `ENABLE` + `FORCE ROW LEVEL SECURITY`, `app.is_workspace_member(workspace_id)` policy via the existing `SECURITY DEFINER` helper (fail-closed on unset GUC). Backend accesses it as `rimi_app`, not as a privileged role. Policy goes in migration 000003 alongside the table DDL.
 
 **TTL cleanup:** background job (or pg_cron) deletes rows older than 90 days.
 
 **Client expiry rule (binding constraint):** before every flush (startup, timer, reconnect, foreground resume), ops with `created_at < now() - 30 days` are auto-failed (`status = 'failed'`, `last_error = 'op_expired'`). The app surfaces a data-check prompt to the user. This sweep runs at the flush callsite, not only on startup, so the invariant is local and obvious: no 30+ day op can ever enter a batch. The 90-day server ledger always covers any possible retry; the dangerous double-apply scenario cannot occur.
 
-**Handler contract:** for each op, within its own Postgres transaction —
-1. **Lock first:** `pg_advisory_xact_lock(hashtext(workspace_id || ':' || op_id))` — serializes concurrent requests for the same op before any ledger read; eliminates check-then-act race
-2. Check `sync_applied_ops` for `(workspace_id, op_id)` — return cached result immediately if found
-3. Apply the operation (for `inventory_delta`: advisory lock per `entity_id`, apply delta)
-4. Insert result into `sync_applied_ops`
-5. Commit
+**Handler contract — per entity-group transaction:**
 
-**Batch handling:** ops in a batch are partitioned into cached and fresh before applying. For `inventory_delta` aggregation across fresh ops sharing an `entity_id`: sum fresh deltas only — cached op deltas are excluded from the sum. Cached ops' stored results are returned from the ledger unchanged.
+Fresh `inventory_delta` ops that share an `entity_id` must be aggregated and applied in one transaction; "per op transaction" would break the delta sum. The unit of atomicity is the entity group (all fresh ops for one `entity_id`), not the individual op.
+
+For each entity group within the batch:
+1. **Lock per op (idempotency):** `pg_advisory_xact_lock(hashtext(workspace_id || ':' || op_id))` for every op in the group — serializes concurrent same-op requests before any ledger read
+2. Check `sync_applied_ops` for each `(workspace_id, op_id)` — partition into cached and fresh
+3. If all ops are cached: return cached results, no DB write
+4. **Lock entity:** `pg_advisory_xact_lock(hashtext(entity_id))` — prevents concurrent batches from two devices racing on the same inventory row
+5. Sum deltas from fresh ops only; apply the aggregated delta
+6. Insert results for fresh ops into `sync_applied_ops`
+7. Commit
+
+Cached ops return their stored `result` payload from the ledger unchanged. Their deltas are excluded from the sum.
 
 **Mixed batch example:** batch contains op A (cached, delta=-2) and op B (fresh, delta=-3) for the same `entity_id`. Server applies delta=-3 only; quantity decrements by 3. Response returns cached result for A (from ledger) and new result for B. The -2 is not double-counted.
 
@@ -232,9 +241,9 @@ Other tables (orders, customers, etc.) get the same treatment in their respectiv
 }
 ```
 
-**Idempotency:** before applying any op, the server checks `sync_applied_ops` for `(workspace_id, op_id)`. If found, the cached result is returned immediately without re-applying. If not found, the op is applied and the result is inserted into `sync_applied_ops` in the same transaction.
+**Idempotency + processing:** ops are grouped by `entity_id`. For each group, the server first acquires per-op advisory locks, checks `sync_applied_ops` to partition cached vs fresh ops, then acquires an entity-level advisory lock, sums fresh deltas only, applies the aggregated delta, and inserts fresh results into the ledger — all in one transaction. Cached ops return their stored result without re-applying. See §`sync_applied_ops` handler contract for the full step sequence.
 
-**Processing:** `inventory_delta` ops for the same `entity_id` within a batch are summed and applied atomically via `SELECT pg_advisory_xact_lock(hashtext(entity_id))` inside a transaction. `entity_id` must be an `inventory_items.id` UUID (not `variant_id` — `quantity` lives on `inventory_items`, see `000001_init_schema.up.sql` line 121). This prevents concurrent batches from two devices racing.
+`entity_id` must be an `inventory_items.id` UUID (not `variant_id` — `quantity` lives on `inventory_items`, see `000001_init_schema.up.sql` line 121).
 
 **Response (envelope):**
 ```json

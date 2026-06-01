@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/auth_notifier.dart';
+import '../../core/auth/auth_state.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/primitives.dart';
 
@@ -24,7 +25,20 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   }
 
   Future<void> _bootstrap() async {
+    // Hard fallback: if bootstrap hangs (e.g. Keychain deadlock on simulator),
+    // force unauthenticated after 8 seconds so the app doesn't stay on splash.
+    Future.delayed(const Duration(seconds: 8), () {
+      if (mounted) {
+        final status = ref.read(authNotifierProvider).status;
+        if (status == AuthStatus.unknown) {
+          debugPrint('[RiMi] bootstrap timeout — forcing unauthenticated');
+          ref.read(authNotifierProvider.notifier).forceLogout();
+        }
+      }
+    });
+    debugPrint('[RiMi] bootstrap starting');
     await ref.read(authNotifierProvider.notifier).bootstrap();
+    debugPrint('[RiMi] bootstrap done');
     // Router redirect guard handles navigation automatically.
   }
 

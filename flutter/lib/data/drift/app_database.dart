@@ -48,7 +48,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -64,6 +64,21 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(orders);
           }
           if (from < 4) {
+            await m.createTable(customers);
+            await m.createTable(incomeEntries);
+            await m.createTable(expenseEntries);
+            await m.createTable(invoices);
+          }
+          if (from < 5) {
+            // Clear all local mock/stale data — real data reloads from backend.
+            await m.deleteTable('orders');
+            await m.deleteTable('products');
+            await m.deleteTable('customers');
+            await m.deleteTable('income_entries');
+            await m.deleteTable('expense_entries');
+            await m.deleteTable('invoices');
+            await m.createTable(orders);
+            await m.createTable(products);
             await m.createTable(customers);
             await m.createTable(incomeEntries);
             await m.createTable(expenseEntries);

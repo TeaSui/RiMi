@@ -816,6 +816,15 @@ class _OrdersMobileState extends ConsumerState<OrdersMobile> {
   final _search = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Sync from server on screen mount so local Drift stays up-to-date.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(ordersNotifierProvider.notifier).refreshFromServer();
+    });
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     super.dispose();

@@ -121,9 +121,9 @@ class OrdersNotifier extends AsyncNotifier<void> {
         );
       }).toList();
 
-      if (rows.isNotEmpty) {
-        await _db.ordersDao.upsertAll(rows);
-      }
+      // Replace all local rows for this workspace with the authoritative server list.
+      // This removes any stale/mock rows that were never on the server.
+      await _db.ordersDao.replaceAll(wsId, rows);
     } on DioException {
       // Offline — use cached data; stream consumers see no change.
     }

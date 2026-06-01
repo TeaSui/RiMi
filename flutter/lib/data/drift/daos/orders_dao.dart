@@ -33,6 +33,17 @@ class OrdersDao extends DatabaseAccessor<AppDatabase> with _$OrdersDaoMixin {
     await batch((b) => b.insertAllOnConflictUpdate(orders, rows));
   }
 
+  /// Replaces ALL local orders for a workspace with the server-authoritative list.
+  /// Deletes rows not present on the server (removes stale/mock data).
+  Future<void> replaceAll(String workspaceId, List<OrdersCompanion> rows) async {
+    await transaction(() async {
+      await (delete(orders)..where((t) => t.workspaceId.equals(workspaceId))).go();
+      if (rows.isNotEmpty) {
+        await batch((b) => b.insertAllOnConflictUpdate(orders, rows));
+      }
+    });
+  }
+
   /// Returns the count of active (non-done) orders for the given workspace.
   Future<int> countActive(String workspaceId) async {
     final count = orders.id.count();

@@ -23,7 +23,7 @@ class TokenStorage {
   final FlutterSecureStorage _storage;
 
   static const _iosOptions = IOSOptions(
-    accessibility: KeychainAccessibility.unlocked_this_device,
+    accessibility: KeychainAccessibility.first_unlock_this_device,
   );
   // encryptedSharedPreferences is deprecated in v10+ — custom cipher is used
   // automatically. Just enable Android-specific options.

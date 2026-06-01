@@ -26,7 +26,9 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthState.unknown();
 
     try {
-      final accessToken = await _storage.getAccessToken();
+      // Hard 10-second timeout guards against Keychain deadlock on simulator.
+      final accessToken = await _storage.getAccessToken()
+          .timeout(const Duration(seconds: 10), onTimeout: () => null);
       if (accessToken == null) {
         state = const AuthState.unauthenticated();
         return;

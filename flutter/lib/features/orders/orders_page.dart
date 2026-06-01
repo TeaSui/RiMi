@@ -406,7 +406,7 @@ class OrderDetailBody extends StatelessWidget {
               GestureDetector(onTap: () => Navigator.of(context).maybePop(), child: const RmIcon('arrowL', size: 22, color: RM.ink)),
               const SizedBox(width: 11),
             ],
-            Text('Order #${order.id}', style: RMType.display(size: showBack ? 19 : 24)),
+            Text('#${order.id.substring(0, 8).toUpperCase()}', style: RMType.display(size: showBack ? 19 : 24)),
             const SizedBox(width: 11),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
@@ -447,7 +447,7 @@ class OrderDetailBody extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 14),
-              Text('ITEMS', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.muted, letterSpacing: 0.4)),
+              Text('MÓN ĐÃ ĐẶT', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.muted, letterSpacing: 0.4)),
               const SizedBox(height: 8),
               for (int i = 0; i < lines.length; i++)
                 Container(
@@ -488,7 +488,7 @@ class OrderDetailBody extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: Text('Print bill', style: RMType.body(size: 14.5, weight: FontWeight.w700, color: RM.ink70)),
+                child: Text('In hoá đơn', style: RMType.body(size: 14.5, weight: FontWeight.w700, color: RM.ink70)),
               ),
             ),
             const SizedBox(width: 12),

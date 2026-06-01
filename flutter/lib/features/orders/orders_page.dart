@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/auth/auth_notifier.dart';
+import '../../core/customers/customer_providers.dart';
 import '../../core/orders/order_providers.dart';
 import '../../data/drift/app_database.dart' as drift;
 import '../../data/mock_data.dart';
@@ -13,6 +14,9 @@ import '../../widgets/primitives.dart';
 // ─────────────────────────────────────────────────────────────────────
 // Adapter — converts a Drift Order to the mock Order model used by UI
 // ─────────────────────────────────────────────────────────────────────
+
+// Public adapter used by home_page.dart and any widget that needs a mock-compatible Order.
+Order toUiOrder(drift.Order d) => _toUiOrder(d);
 
 Order _toUiOrder(drift.Order d) {
   final diff = DateTime.now().millisecondsSinceEpoch - d.createdAt;
@@ -616,7 +620,9 @@ class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
 
   @override
   Widget build(BuildContext context) {
-    final suggestions = CustomerStore.instance.all.take(6).toList();
+    final wsId = ref.read(authNotifierProvider).activeWorkspaceId ?? '';
+    final custAsync = ref.watch(customersProvider(wsId));
+    final suggestions = custAsync.maybeWhen(data: (d) => d.take(6).toList(), orElse: () => []);
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: ConstrainedBox(

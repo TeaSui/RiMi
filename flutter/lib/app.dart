@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/responsive.dart';
 import 'core/router/app_router.dart';
+import 'core/auth/auth_notifier.dart';
+import 'core/orders/order_providers.dart';
 import 'core/sync/sync_providers.dart';
 import 'data/mock_data.dart';
 import 'theme/app_theme.dart';
@@ -115,14 +117,14 @@ class RootShell extends StatelessWidget {
   }
 }
 
-class _ShellBody extends StatelessWidget {
+class _ShellBody extends ConsumerWidget {
   const _ShellBody();
 
   static const _mobile = RootShell._mobile;
   static const _tablet = RootShell._tablet;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ValueListenableBuilder<int>(
       valueListenable: AppNav.tab,
       builder: (context, tab, _) {
@@ -153,13 +155,17 @@ class _ShellBody extends StatelessWidget {
               ],
             ),
           ),
-          bottomNavigationBar: ListenableBuilder(
-            listenable: OrderStore.instance,
-            builder: (context, _) => RiMiBottomNav(
-              activeIndex: tab,
-              onTap: (i) => AppNav.tab.value = i,
-              badges: {1: OrderStore.instance.activeCount},
-            ),
+          bottomNavigationBar: Builder(
+            builder: (context) {
+              final wsId = ref.watch(authNotifierProvider).activeWorkspaceId ?? '';
+              final orders = ref.watch(ordersProvider(wsId)).maybeWhen(data: (d) => d, orElse: () => []);
+              final activeCount = orders.where((o) => o.status != 'done').length;
+              return RiMiBottomNav(
+                activeIndex: tab,
+                onTap: (i) => AppNav.tab.value = i,
+                badges: {1: activeCount},
+              );
+            },
           ),
         );
       },

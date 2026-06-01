@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app.dart';
 import '../../core/app_icons.dart';
+import '../../core/auth/auth_notifier.dart';
+import '../../core/orders/order_providers.dart';
+import '../../data/drift/app_database.dart' as drift;
 import '../../data/mock_data.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
@@ -223,24 +227,30 @@ class _ActiveOrderRow extends StatelessWidget {
   }
 }
 
-class _ActiveOrders extends StatelessWidget {
+class _ActiveOrders extends ConsumerWidget {
   const _ActiveOrders({this.limit = 2});
   final int limit;
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: OrderStore.instance,
-      builder: (context, _) {
-        final active = OrderStore.instance.all.where((o) => o.status != 'done').take(limit).toList();
-        return Column(
-          children: [
-            for (int i = 0; i < active.length; i++) ...[
-              if (i > 0) const SizedBox(height: 10),
-              _ActiveOrderRow(active[i]),
-            ],
-          ],
-        );
-      },
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wsId = ref.watch(authNotifierProvider).activeWorkspaceId ?? '';
+    final ordersAsync = ref.watch(ordersProvider(wsId));
+    final driftOrders = ordersAsync.maybeWhen(
+      data: (d) => d,
+      orElse: () => <drift.Order>[],
+    );
+    final active = driftOrders
+        .where((o) => o.status != 'done')
+        .take(limit)
+        .map((drift.Order o) => toUiOrder(o))
+        .toList();
+    if (active.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        for (int i = 0; i < active.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _ActiveOrderRow(active[i]),
+        ],
+      ],
     );
   }
 }

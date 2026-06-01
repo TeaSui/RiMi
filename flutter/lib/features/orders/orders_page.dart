@@ -23,14 +23,14 @@ Order _toUiOrder(drift.Order d) {
   final diff = DateTime.now().millisecondsSinceEpoch - d.createdAt;
   final mins = diff ~/ 60000;
   final timeStr = mins < 1
-      ? 'just now'
+      ? 'vừa xong'
       : mins < 60
           ? '$mins min'
           : '${mins ~/ 60}h';
 
   return Order(
     id: d.id,
-    cust: d.customerName ?? 'Walk-in',
+    cust: d.customerName ?? 'Khách lẻ',
     ch: d.channel,
     items: d.itemsSummary,
     total: d.totalAmount,
@@ -148,7 +148,7 @@ class StatusTabs extends StatelessWidget {
 }
 
 class SearchField extends StatelessWidget {
-  const SearchField({super.key, required this.controller, required this.onChanged, required this.onClose, this.hint = 'Search by #, customer, dish…'});
+  const SearchField({super.key, required this.controller, required this.onChanged, required this.onClose, this.hint = 'Tìm theo #, khách, món…'});
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onClose;
@@ -219,21 +219,28 @@ class OrderCard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 13, 14, 10),
               child: Row(children: [
-                Text('#${o.id.substring(0, 8).toUpperCase()}', style: RMType.body(size: 15, weight: FontWeight.w800)),
+                Expanded(
+                  child: Text(
+                    o.items.isNotEmpty ? o.items : '#${o.id.substring(0, 8).toUpperCase()}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: RMType.body(size: 14.5, weight: FontWeight.w800),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(color: channelColor[o.ch]!.withValues(alpha: 0.09), borderRadius: BorderRadius.circular(8)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    StatusDot(channelColor[o.ch]!, size: 7),
-                    const SizedBox(width: 4),
-                    Text(channelLabel[o.ch]!, style: RMType.body(size: 11, weight: FontWeight.w700, color: channelColor[o.ch]!)),
+                    StatusDot(channelColor[o.ch]!, size: 6),
+                    const SizedBox(width: 3),
+                    Text(channelLabel[o.ch]!, style: RMType.body(size: 10.5, weight: FontWeight.w700, color: channelColor[o.ch]!)),
                   ]),
                 ),
-                const Spacer(),
-                Icon(AppIcons.of('clock'), size: 13, color: o.late ? RM.danger : RM.muted),
-                const SizedBox(width: 3),
-                Text(o.late ? '${o.time} · trễ' : o.time, style: RMType.body(size: 11.5, weight: FontWeight.w600, color: o.late ? RM.danger : RM.muted)),
+                const SizedBox(width: 5),
+                Icon(AppIcons.of('clock'), size: 12, color: o.late ? RM.danger : RM.muted),
+                const SizedBox(width: 2),
+                Text(o.late ? '${o.time}·trễ' : o.time, style: RMType.body(size: 11, weight: FontWeight.w600, color: o.late ? RM.danger : RM.muted)),
               ]),
             ),
           ),
@@ -556,7 +563,7 @@ class OrderDetailPage extends ConsumerWidget {
             return OrderDetailBody(o: o, showBack: true);
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, s) => const Center(child: Text('Error loading order')),
+          error: (e, s) => const Center(child: Text('Không tải được đơn hàng')),
         ),
       ),
     );
@@ -616,7 +623,7 @@ class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
       totalAmount: _computeTotal(menu),
     );
     Navigator.of(context).pop(true);
-    rmToast(context, 'Order created');
+    rmToast(context, 'Đã tạo đơn hàng');
   }
 
   @override
@@ -856,7 +863,7 @@ class _OrdersMobileState extends ConsumerState<OrdersMobile> {
 
     return ordersAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => const Center(child: Text('Error loading orders')),
+      error: (e, s) => const Center(child: Text('Không tải được danh sách đơn')),
       data: (driftOrders) {
         final orders = driftOrders.map(_toUiOrder).toList();
         final byChannel = orders
@@ -914,7 +921,7 @@ class _OrdersMobileState extends ConsumerState<OrdersMobile> {
                           borderRadius: BorderRadius.circular(13))),
                   icon: const Icon(Icons.add_rounded,
                       size: 18, color: Colors.white),
-                  label: Text('New',
+                  label: Text('Mới',
                       style: RMType.body(
                           size: 13.5,
                           weight: FontWeight.w700,
@@ -958,7 +965,7 @@ class _OrdersMobileState extends ConsumerState<OrdersMobile> {
                             size: 40, color: RM.faint),
                         const SizedBox(height: 12),
                         Text(
-                            'No ${statusStyle[_status]!.label.toLowerCase()} orders',
+                            'Không có đơn ${statusStyle[_status]!.label.toLowerCase()}',
                             style: RMType.body(
                                 size: 14,
                                 weight: FontWeight.w600,
@@ -1072,7 +1079,7 @@ class _OrdersTabletState extends ConsumerState<OrdersTablet> {
 
     return ordersAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => const Center(child: Text('Error loading orders')),
+      error: (e, s) => const Center(child: Text('Không tải được danh sách đơn')),
       data: (driftOrders) {
         final orders = driftOrders.map(_toUiOrder).toList();
         final byChannel = orders
@@ -1124,7 +1131,7 @@ class _OrdersTabletState extends ConsumerState<OrdersTablet> {
                           borderRadius: BorderRadius.circular(12))),
                   icon: const Icon(Icons.add_rounded,
                       size: 18, color: Colors.white),
-                  label: Text('New order',
+                  label: Text('Đơn mới',
                       style: RMType.body(
                           size: 14,
                           weight: FontWeight.w700,
@@ -1159,7 +1166,7 @@ class _OrdersTabletState extends ConsumerState<OrdersTablet> {
             Expanded(
               child: list.isEmpty
                   ? Center(
-                      child: Text('No orders here',
+                      child: Text('Chưa có đơn hàng',
                           style:
                               RMType.body(size: 14, color: RM.muted)))
                   : ListView.separated(

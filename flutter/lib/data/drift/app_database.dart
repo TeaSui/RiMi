@@ -88,7 +88,11 @@ class AppDatabase extends _$AppDatabase {
           }
         },
         beforeOpen: (details) async {
-          await _createIndexes();
+          try {
+            await _createIndexes();
+          } catch (_) {
+            // Index creation is best-effort — don't crash if it fails on first open.
+          }
         },
       );
 
@@ -130,8 +134,12 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File(p.join(dir.path, 'rimi.sqlite'));
-    // Use synchronous NativeDatabase — createInBackground spawns a background
-    // isolate that deadlocks on iOS 18 simulator during first plugin init.
-    return NativeDatabase(file);
+    try {
+      return NativeDatabase(file);
+    } catch (_) {
+      // If DB is corrupt or missing after cache clear, delete and recreate.
+      if (await file.exists()) await file.delete();
+      return NativeDatabase(file);
+    }
   });
 }

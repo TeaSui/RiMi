@@ -116,8 +116,8 @@ const channelColor = <String, Color>{
 const channelLabel = <String, String>{
   'online': 'Web shop',
   'app': 'GrabFood',
-  'phone': 'Phone',
-  'walkin': 'Walk-in',
+  'phone': 'Điện thoại',
+  'walkin': 'Khách lẻ',
 };
 
 class StatusStyle {
@@ -127,11 +127,11 @@ class StatusStyle {
 }
 
 const statusStyle = <String, StatusStyle>{
-  'new': StatusStyle(RM.brand, 'New'),
-  'cooking': StatusStyle(RM.gold, 'Cooking'),
-  'ready': StatusStyle(RM.herb, 'Ready'),
-  'delivering': StatusStyle(RM.info, 'Delivering'),
-  'done': StatusStyle(RM.muted, 'Done'),
+  'new': StatusStyle(RM.brand, 'Mới'),
+  'cooking': StatusStyle(RM.gold, 'Đang nấu'),
+  'ready': StatusStyle(RM.herb, 'Sẵn sàng'),
+  'delivering': StatusStyle(RM.info, 'Đang giao'),
+  'done': StatusStyle(RM.muted, 'Hoàn thành'),
 };
 
 const nextStatus = <String, String>{
@@ -141,27 +141,27 @@ const nextStatus = <String, String>{
   'delivering': 'done',
 };
 const nextAction = <String, String>{
-  'new': 'Start cooking',
-  'cooking': 'Mark ready',
-  'ready': 'Out for delivery',
-  'delivering': 'Complete',
-  'done': 'Done',
+  'new': 'Bắt đầu nấu',
+  'cooking': 'Xong món',
+  'ready': 'Đang giao',
+  'delivering': 'Hoàn thành',
+  'done': 'Hoàn thành',
 };
 
 const statusTabs = [
-  ('new', 'New'),
-  ('cooking', 'Cooking'),
-  ('ready', 'Ready'),
-  ('delivering', 'Delivering'),
-  ('done', 'Done'),
+  ('new', 'Mới'),
+  ('cooking', 'Đang nấu'),
+  ('ready', 'Sẵn sàng'),
+  ('delivering', 'Đang giao'),
+  ('done', 'Hoàn thành'),
 ];
 
 const channels = [
-  ('all', 'All channels', null),
+  ('all', 'Tất cả kênh', null),
   ('online', 'Web shop', RM.herb),
   ('app', 'GrabFood', RM.gold),
-  ('phone', 'Phone', RM.info),
-  ('walkin', 'Walk-in', RM.muted),
+  ('phone', 'Điện thoại', RM.info),
+  ('walkin', 'Khách lẻ', RM.muted),
 ];
 
 class StockStyle {
@@ -185,9 +185,9 @@ class TierStyle {
 
 const tiers = <String, TierStyle>{
   'vip': TierStyle(RM.tierVip, RM.tierVipSoft, 'VIP'),
-  'gold': TierStyle(RM.gold, RM.goldSoft, 'Gold'),
-  'reg': TierStyle(RM.herb, RM.herbSoft, 'Regular'),
-  'risk': TierStyle(RM.danger, RM.dangerSoft, 'At-risk'),
+  'gold': TierStyle(RM.gold, RM.goldSoft, 'Vàng'),
+  'reg': TierStyle(RM.herb, RM.herbSoft, 'Thường'),
+  'risk': TierStyle(RM.danger, RM.dangerSoft, 'Nguy cơ'),
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -287,7 +287,7 @@ class CustomerStore extends ChangeNotifier {
   List<Customer> get all => _data;
 
   void add({required String name, required String phone, required String area, required String tier, required int seed}) {
-    _data.insert(0, Customer(name: name, phone: phone, area: area, tier: tier, orders: 0, spent: '0₫', last: 'New', seed: seed, fav: '—'));
+    _data.insert(0, Customer(name: name, phone: phone, area: area, tier: tier, orders: 0, spent: '0₫', last: 'Mới', seed: seed, fav: '—'));
     notifyListeners();
   }
 }

@@ -6,8 +6,7 @@ app = "rimi-api"
 primary_region = "sin"   # Singapore — closest to Vietnam
 
 [build]
-  dockerfile = "server/Dockerfile"
-  build_context = "server"
+  dockerfile = "Dockerfile"
 
 [env]
   PORT = "8080"

@@ -71,12 +71,14 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 5) {
             // Clear all local mock/stale data — real data reloads from backend.
-            await m.deleteTable('orders');
-            await m.deleteTable('products');
-            await m.deleteTable('customers');
-            await m.deleteTable('income_entries');
-            await m.deleteTable('expense_entries');
-            await m.deleteTable('invoices');
+            // Use raw SQL to drop tables (Migrator.deleteTable requires table objects,
+            // but these may already exist from prior schema versions).
+            await customStatement('DROP TABLE IF EXISTS orders');
+            await customStatement('DROP TABLE IF EXISTS products');
+            await customStatement('DROP TABLE IF EXISTS customers');
+            await customStatement('DROP TABLE IF EXISTS income_entries');
+            await customStatement('DROP TABLE IF EXISTS expense_entries');
+            await customStatement('DROP TABLE IF EXISTS invoices');
             await m.createTable(orders);
             await m.createTable(products);
             await m.createTable(customers);

@@ -90,7 +90,7 @@ abstract final class RMType {
       );
 }
 
-/// Vietnamese đồng formatter — e.g. 148000 -> "148.000 ₫".
+/// Vietnamese đồng formatter — e.g. 148000 -> "148.000đ".
 String vnd(num n) {
   final s = n.round().toString();
   final buf = StringBuffer();
@@ -98,5 +98,5 @@ String vnd(num n) {
     if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
     buf.write(s[i]);
   }
-  return '${buf.toString()}\u202F₫';
+  return '${buf.toString()}đ';
 }

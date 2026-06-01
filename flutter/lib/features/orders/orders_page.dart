@@ -5,6 +5,7 @@ import '../../core/app_icons.dart';
 import '../../core/auth/auth_notifier.dart';
 import '../../core/customers/customer_providers.dart';
 import '../../core/orders/order_providers.dart';
+import '../../core/products/product_providers.dart';
 import '../../data/drift/app_database.dart' as drift;
 import '../../data/mock_data.dart';
 import '../../theme/app_theme.dart';
@@ -585,28 +586,34 @@ class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
   final Map<String, int> _qty = {};
   final _name = TextEditingController();
 
-  int get _total => composerMenu.fold(0, (s, m) => s + (_qty[m.$1] ?? 0) * m.$2);
+  // Compute total from actual product prices in the live menu.
+  int _computeTotal(List<drift.Product> menu) =>
+      menu.fold(0, (s, p) => s + (_qty[p.id] ?? 0) * p.price);
+
   int get _count => _qty.values.fold(0, (s, n) => s + n);
 
-  void _bump(String name, int d) {
+  void _bump(String id, int d) {
     setState(() {
-      final v = ((_qty[name] ?? 0) + d).clamp(0, 99);
+      final v = ((_qty[id] ?? 0) + d).clamp(0, 99);
       if (v == 0) {
-        _qty.remove(name);
+        _qty.remove(id);
       } else {
-        _qty[name] = v;
+        _qty[id] = v;
       }
     });
   }
 
-  void _create() {
-    final items = composerMenu.where((m) => _qty[m.$1] != null).map((m) => '${m.$1} ×${_qty[m.$1]}').join(', ');
+  void _create(List<drift.Product> menu) {
+    final items = menu
+        .where((p) => _qty[p.id] != null)
+        .map((p) => '${p.name} ×${_qty[p.id]}')
+        .join(', ');
     final custName = _name.text.trim().isEmpty ? 'Khách lẻ · Walk-in' : _name.text.trim();
     ref.read(ordersNotifierProvider.notifier).createOrder(
       channel: 'walkin',
       customerName: custName,
       itemsSummary: items,
-      totalAmount: _total,
+      totalAmount: _computeTotal(menu),
     );
     Navigator.of(context).pop(true);
     rmToast(context, 'Order created');
@@ -620,9 +627,14 @@ class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
 
   @override
   Widget build(BuildContext context) {
-    final wsId = ref.read(authNotifierProvider).activeWorkspaceId ?? '';
+    final wsId = ref.watch(authNotifierProvider).activeWorkspaceId ?? '';
     final custAsync = ref.watch(customersProvider(wsId));
     final suggestions = custAsync.maybeWhen(data: (d) => d.take(6).toList(), orElse: () => []);
+    final menu = ref.watch(productsProvider(wsId)).maybeWhen(
+      data: (d) => d.where((p) => p.isActive).toList(),
+      orElse: () => <drift.Product>[],
+    );
+    final total = _computeTotal(menu);
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: ConstrainedBox(
@@ -683,24 +695,30 @@ class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
                     ]),
                   ),
                   const SizedBox(height: 10),
-                  for (final m in composerMenu) ...[
-                    SoftCard(
-                      radius: 14,
-                      padding: const EdgeInsets.all(10),
-                      child: Row(children: [
-                        FoodSlot(seed: m.$3, width: 46, height: 46, radius: 11),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(m.$1, style: RMType.body(size: 14, weight: FontWeight.w700)),
-                            Text(vnd(m.$2), style: RMType.body(size: 12.5, weight: FontWeight.w700, color: RM.brandDeep)),
-                          ]),
-                        ),
-                        _Stepper(n: _qty[m.$1] ?? 0, onMinus: () => _bump(m.$1, -1), onPlus: () => _bump(m.$1, 1)),
-                      ]),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                  if (menu.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: Text('No products yet — add some from Menu & Stock.', style: RMType.body(size: 13, color: RM.muted))),
+                    )
+                  else
+                    for (final p in menu) ...[
+                      SoftCard(
+                        radius: 14,
+                        padding: const EdgeInsets.all(10),
+                        child: Row(children: [
+                          FoodSlot(seed: p.id.hashCode.abs() % 6, width: 46, height: 46, radius: 11),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(p.name, style: RMType.body(size: 14, weight: FontWeight.w700)),
+                              Text(vnd(p.price), style: RMType.body(size: 12.5, weight: FontWeight.w700, color: RM.brandDeep)),
+                            ]),
+                          ),
+                          _Stepper(n: _qty[p.id] ?? 0, onMinus: () => _bump(p.id, -1), onPlus: () => _bump(p.id, 1)),
+                        ]),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                 ],
               ),
             ),
@@ -710,12 +728,12 @@ class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
               child: Row(children: [
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('$_count item${_count == 1 ? '' : 's'}', style: RMType.body(size: 11.5, color: RM.muted)),
-                  Text(vnd(_total), style: RMType.display(size: 22, color: RM.brandDeep)),
+                  Text(vnd(total), style: RMType.display(size: 22, color: RM.brandDeep)),
                 ]),
                 const SizedBox(width: 14),
                 Expanded(
                   child: FilledButton(
-                    onPressed: _count > 0 ? _create : null,
+                    onPressed: _count > 0 ? () => _create(menu) : null,
                     style: FilledButton.styleFrom(
                       backgroundColor: RM.brand,
                       disabledBackgroundColor: RM.line,

@@ -35,13 +35,15 @@ abstract final class AppRoutes {
 /// [refreshListenable] bridges the Riverpod provider to the router,
 /// so the router re-evaluates the redirect whenever auth state changes.
 GoRouter createRouter(WidgetRef ref) {
-  final listenable = _AuthStateListenable(ref.container);
+  final container = ref.container;
+  final listenable = _AuthStateListenable(container);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     refreshListenable: listenable,
     redirect: (context, state) {
-      final authState = ref.read(authNotifierProvider);
+      // Use container.read — captured WidgetRef becomes stale between builds.
+      final authState = container.read(authNotifierProvider);
       final location = state.matchedLocation;
 
       final isAuthRoute = location == AppRoutes.login ||

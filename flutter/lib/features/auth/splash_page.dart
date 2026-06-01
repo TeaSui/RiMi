@@ -38,7 +38,8 @@ class _SplashPageState extends ConsumerState<SplashPage> {
     });
     debugPrint('[RiMi] bootstrap starting');
     await ref.read(authNotifierProvider.notifier).bootstrap();
-    debugPrint('[RiMi] bootstrap done');
+    final status = ref.read(authNotifierProvider).status;
+    debugPrint('[RiMi] bootstrap done — status: $status');
     // Router redirect guard handles navigation automatically.
   }
 

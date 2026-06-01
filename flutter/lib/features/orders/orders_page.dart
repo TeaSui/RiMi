@@ -23,14 +23,14 @@ Order _toUiOrder(drift.Order d) {
   final diff = DateTime.now().millisecondsSinceEpoch - d.createdAt;
   final mins = diff ~/ 60000;
   final timeStr = mins < 1
-      ? 'just now'
+      ? 'vừa xong'
       : mins < 60
-          ? '$mins min'
-          : '${mins ~/ 60}h';
+          ? '$mins phút'
+          : '${mins ~/ 60} giờ';
 
   return Order(
     id: d.id,
-    cust: d.customerName ?? 'Walk-in',
+    cust: d.customerName ?? 'Khách lẻ',
     ch: d.channel,
     items: d.itemsSummary,
     total: d.totalAmount,
@@ -148,7 +148,7 @@ class StatusTabs extends StatelessWidget {
 }
 
 class SearchField extends StatelessWidget {
-  const SearchField({super.key, required this.controller, required this.onChanged, required this.onClose, this.hint = 'Search by #, customer, dish…'});
+  const SearchField({super.key, required this.controller, required this.onChanged, required this.onClose, this.hint = 'Tìm #, khách, món…'});
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onClose;
@@ -275,7 +275,7 @@ class OrderCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
                 ),
-                child: Text('Details', style: RMType.body(size: 13, weight: FontWeight.w700, color: RM.ink70)),
+                child: Text('Chi tiết', style: RMType.body(size: 13, weight: FontWeight.w700, color: RM.ink70)),
               ),
               if (o.status != 'done') ...[
                 const SizedBox(width: 8),
@@ -283,7 +283,7 @@ class OrderCard extends StatelessWidget {
                   child: FilledButton(
                     onPressed: () {
                       onAdvance?.call();
-                      rmToast(context, '#${o.id} → ${statusStyle[nextStatus[o.status]]!.label}');
+                      rmToast(context, '#${o.id.substring(0,8).toUpperCase()} → ${statusStyle[nextStatus[o.status]]!.label}');
                     },
                     style: FilledButton.styleFrom(
                       backgroundColor: ss.color,
@@ -355,7 +355,7 @@ class DenseRow extends StatelessWidget {
             GestureDetector(
               onTap: () {
                 onAdvance?.call();
-                rmToast(context, '#${o.id} advanced');
+                rmToast(context, 'Đã cập nhật đơn #${o.id.substring(0,8).toUpperCase()}');
               },
               child: Container(
                 width: 34,
@@ -504,7 +504,7 @@ class OrderDetailBody extends StatelessWidget {
                                 .read(ordersNotifierProvider.notifier)
                                 .advanceStatus(order.id, ns);
                           }
-                          rmToast(context, '#${order.id} → ${statusStyle[nextStatus[order.status]]!.label}');
+                          rmToast(context, '#${order.id.substring(0,8).toUpperCase()} → ${statusStyle[nextStatus[order.status]]!.label}');
                           if (showBack) Navigator.of(context).maybePop();
                         },
                         style: FilledButton.styleFrom(
@@ -556,7 +556,7 @@ class OrderDetailPage extends ConsumerWidget {
             return OrderDetailBody(o: o, showBack: true);
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, s) => const Center(child: Text('Error loading order')),
+          error: (e, s) => const Center(child: Text('Không tải được đơn hàng')),
         ),
       ),
     );
@@ -660,7 +660,7 @@ class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('CUSTOMER', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.muted, letterSpacing: 0.4)),
                       const SizedBox(height: 9),
-                      _Field(controller: _name, hint: 'Walk-in — or type a name', fill: RM.cream),
+                      _Field(controller: _name, hint: 'Khách lẻ — hoặc nhập tên', fill: RM.cream),
                       if (suggestions.isNotEmpty) ...[
                         const SizedBox(height: 10),
                         SingleChildScrollView(
@@ -856,7 +856,7 @@ class _OrdersMobileState extends ConsumerState<OrdersMobile> {
 
     return ordersAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => const Center(child: Text('Error loading orders')),
+      error: (e, s) => const Center(child: Text('Không tải được đơn hàng')),
       data: (driftOrders) {
         final orders = driftOrders.map(_toUiOrder).toList();
         final byChannel = orders
@@ -914,7 +914,7 @@ class _OrdersMobileState extends ConsumerState<OrdersMobile> {
                           borderRadius: BorderRadius.circular(13))),
                   icon: const Icon(Icons.add_rounded,
                       size: 18, color: Colors.white),
-                  label: Text('New',
+                  label: Text('Mới',
                       style: RMType.body(
                           size: 13.5,
                           weight: FontWeight.w700,
@@ -958,7 +958,7 @@ class _OrdersMobileState extends ConsumerState<OrdersMobile> {
                             size: 40, color: RM.faint),
                         const SizedBox(height: 12),
                         Text(
-                            'No ${statusStyle[_status]!.label.toLowerCase()} orders',
+                            'Không có đơn ${statusStyle[_status]!.label.toLowerCase()}',
                             style: RMType.body(
                                 size: 14,
                                 weight: FontWeight.w600,
@@ -1072,7 +1072,7 @@ class _OrdersTabletState extends ConsumerState<OrdersTablet> {
 
     return ordersAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => const Center(child: Text('Error loading orders')),
+      error: (e, s) => const Center(child: Text('Không tải được đơn hàng')),
       data: (driftOrders) {
         final orders = driftOrders.map(_toUiOrder).toList();
         final byChannel = orders
@@ -1124,7 +1124,7 @@ class _OrdersTabletState extends ConsumerState<OrdersTablet> {
                           borderRadius: BorderRadius.circular(12))),
                   icon: const Icon(Icons.add_rounded,
                       size: 18, color: Colors.white),
-                  label: Text('New order',
+                  label: Text('Đơn mới',
                       style: RMType.body(
                           size: 14,
                           weight: FontWeight.w700,
@@ -1159,7 +1159,7 @@ class _OrdersTabletState extends ConsumerState<OrdersTablet> {
             Expanded(
               child: list.isEmpty
                   ? Center(
-                      child: Text('No orders here',
+                      child: Text('Chưa có đơn hàng',
                           style:
                               RMType.body(size: 14, color: RM.muted)))
                   : ListView.separated(

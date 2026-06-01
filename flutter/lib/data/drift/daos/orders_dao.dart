@@ -44,6 +44,16 @@ class OrdersDao extends DatabaseAccessor<AppDatabase> with _$OrdersDaoMixin {
     });
   }
 
+  /// Updates only the status field — safe partial update that preserves workspaceId.
+  Future<void> updateStatus(String orderId, String newStatus, int updatedAtMs) {
+    return (update(orders)..where((t) => t.id.equals(orderId))).write(
+      OrdersCompanion(
+        status: Value(newStatus),
+        updatedAt: Value(updatedAtMs),
+      ),
+    );
+  }
+
   /// Returns the count of active (non-done) orders for the given workspace.
   Future<int> countActive(String workspaceId) async {
     final count = orders.id.count();

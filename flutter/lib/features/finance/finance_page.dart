@@ -224,9 +224,9 @@ class _Legend extends StatelessWidget {
               style: RMType.body(size: 11.5, color: RM.muted)),
         ]);
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      item(RM.brand, null, 'Revenue'),
+      item(RM.brand, null, 'Doanh thu'),
       const SizedBox(width: 16),
-      item(RM.goldSoft, Border.all(color: RM.gold), 'Expenses'),
+      item(RM.goldSoft, Border.all(color: RM.gold), 'Chi phí'),
     ]);
   }
 }
@@ -319,7 +319,7 @@ class _FinanceMobileState extends ConsumerState<FinanceMobile> {
                 ]),
           ),
           GestureDetector(
-            onTap: () => rmToast(context, 'Exporting report…'),
+            onTap: () => rmToast(context, 'Đang xuất báo cáo…'),
             child: Container(
               width: 40,
               height: 40,
@@ -351,7 +351,7 @@ class _FinanceMobileState extends ConsumerState<FinanceMobile> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Net profit',
+                    Text('Lợi nhuận',
                         style: RMType.body(
                             size: 12.5,
                             weight: FontWeight.w600,
@@ -363,9 +363,9 @@ class _FinanceMobileState extends ConsumerState<FinanceMobile> {
                             color: RM.herb)),
                     const SizedBox(height: 6),
                     Row(children: [
-                      _inline('Revenue', summary.formattedIncome),
+                      _inline('Doanh thu', summary.formattedIncome),
                       const SizedBox(width: 18),
-                      _inline('Expenses', summary.formattedExpense),
+                      _inline('Chi phí', summary.formattedExpense),
                     ]),
                     const SizedBox(height: 16),
                     BarChart(data: chartData, max: chartMax),
@@ -434,10 +434,10 @@ class _FinanceTabletState extends ConsumerState<FinanceTablet> {
     final periodLabel = _periodLabel(_period);
 
     final kpiData = [
-      ('Revenue', summary.formattedIncome, ''),
-      ('Expenses', summary.formattedExpense, ''),
-      ('Net profit', summary.formattedProfit, ''),
-      ('Orders', '—', ''),
+      ('Doanh thu', summary.formattedIncome, ''),
+      ('Chi phí', summary.formattedExpense, ''),
+      ('Lợi nhuận', summary.formattedProfit, ''),
+      ('Đơn hàng', '—', ''),
     ];
 
     final portrait = MediaQuery.sizeOf(context).height >
@@ -463,7 +463,7 @@ class _FinanceTabletState extends ConsumerState<FinanceTablet> {
                 onChange: (p) => setState(() => _period = p)),
             const SizedBox(width: 12),
             OutlinedButton.icon(
-              onPressed: () => rmToast(context, 'Exporting report…'),
+              onPressed: () => rmToast(context, 'Đang xuất báo cáo…'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: RM.ink,
                 side: const BorderSide(color: RM.line),
@@ -475,7 +475,7 @@ class _FinanceTabletState extends ConsumerState<FinanceTablet> {
               ),
               icon: const Icon(Icons.file_download_outlined,
                   size: 18, color: RM.ink),
-              label: Text('Export',
+              label: Text('Xuất báo cáo',
                   style: RMType.body(
                       size: 14,
                       weight: FontWeight.w700,
@@ -549,7 +549,7 @@ class _FinanceTabletState extends ConsumerState<FinanceTablet> {
                       children: [
                         Row(children: [
                           Expanded(
-                            child: Text('Revenue vs expenses',
+                            child: Text('Doanh thu & Chi phí',
                                 style: RMType.body(
                                     size: 16,
                                     weight: FontWeight.w700)),
@@ -574,15 +574,15 @@ class _FinanceTabletState extends ConsumerState<FinanceTablet> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Summary',
+                        Text('Tổng hợp',
                             style: RMType.body(
                                 size: 16,
                                 weight: FontWeight.w700)),
                         const SizedBox(height: 14),
                         for (final row in [
-                          ('Income entries', '${income.length}'),
-                          ('Expense entries', '${expenses.length}'),
-                          ('Net profit', summary.formattedProfit),
+                          ('Thu nhập', '${income.length}'),
+                          ('Chi phí', '${expenses.length}'),
+                          ('Lợi nhuận', summary.formattedProfit),
                         ]) ...[
                           Row(children: [
                             Expanded(
@@ -615,11 +615,11 @@ class _FinanceTabletState extends ConsumerState<FinanceTablet> {
 String _periodLabel(String period) {
   final now = DateTime.now();
   if (period == 'Day') {
-    return 'Today · ${now.day} ${_monthName(now.month)}';
+    return 'Hôm nay · ${now.day} ${_monthName(now.month)}';
   }
   if (period == 'Week') {
     final start = now.subtract(Duration(days: now.weekday - 1));
-    return 'This week · ${start.day}–${now.day} ${_monthName(now.month)}';
+    return 'Tuần này · ${start.day}–${now.day} ${_monthName(now.month)}';
   }
   return '${_monthName(now.month)} ${now.year}';
 }

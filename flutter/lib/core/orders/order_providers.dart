@@ -37,13 +37,8 @@ class OrdersNotifier extends AsyncNotifier<void> {
   /// Advances the order to [newStatus] locally, then syncs to the server.
   Future<void> advanceStatus(String orderId, String newStatus) async {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    await _db.ordersDao.upsert(
-      OrdersCompanion(
-        id: Value(orderId),
-        status: Value(newStatus),
-        updatedAt: Value(nowMs),
-      ),
-    );
+    // Use targeted update — upsert with absent fields corrupts workspaceId.
+    await _db.ordersDao.updateStatus(orderId, newStatus, nowMs);
     try {
       await _dio.put<dynamic>(
         '/orders/$orderId/status',

@@ -50,17 +50,11 @@ class RiMiApp extends ConsumerStatefulWidget {
 }
 
 class _RiMiAppState extends ConsumerState<RiMiApp> {
-  late final GoRouter _router;
-
-  @override
-  void initState() {
-    super.initState();
-    _router = createRouter(ref);
-  }
+  GoRouter? _router;
 
   @override
   void dispose() {
-    _router.dispose();
+    _router?.dispose();
     super.dispose();
   }
 
@@ -72,12 +66,14 @@ class _RiMiAppState extends ConsumerState<RiMiApp> {
     ref.watch(connectivityWatcherProvider);
     ref.watch(syncFlusherProvider);
     ref.watch(realtimeManagerProvider);
+    // Create router lazily on first build so ref is fully available.
+    _router ??= createRouter(ref);
 
     return MaterialApp.router(
       title: 'RiMi',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      routerConfig: _router,
+      routerConfig: _router!,
     );
   }
 }

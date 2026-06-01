@@ -130,6 +130,8 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File(p.join(dir.path, 'rimi.sqlite'));
-    return NativeDatabase.createInBackground(file);
+    // Use synchronous NativeDatabase — createInBackground spawns a background
+    // isolate that deadlocks on iOS 18 simulator during first plugin init.
+    return NativeDatabase(file);
   });
 }

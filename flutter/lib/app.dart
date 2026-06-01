@@ -5,7 +5,6 @@ import 'core/responsive.dart';
 import 'core/router/app_router.dart';
 import 'core/auth/auth_notifier.dart';
 import 'core/orders/order_providers.dart';
-import 'core/sync/sync_providers.dart';
 import 'data/mock_data.dart';
 import 'theme/app_theme.dart';
 import 'widgets/navigation.dart';
@@ -60,13 +59,9 @@ class _RiMiAppState extends ConsumerState<RiMiApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Warm sync + realtime providers eagerly so offline infrastructure is
-    // live before any feature page tries to enqueue an operation.
-    ref.watch(appDatabaseProvider);
-    ref.watch(connectivityWatcherProvider);
-    ref.watch(syncFlusherProvider);
-    ref.watch(realtimeManagerProvider);
-    // Create router lazily on first build so ref is fully available.
+    // Router created lazily on first build so ref is fully available.
+    // Provider warm-up removed — DB/sync providers were blocking iOS 18
+    // simulator on first-ever launch before any Dart code ran.
     _router ??= createRouter(ref);
 
     return MaterialApp.router(

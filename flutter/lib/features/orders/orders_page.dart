@@ -219,21 +219,21 @@ class OrderCard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 13, 14, 10),
               child: Row(children: [
-                Text('#${o.id}', style: RMType.body(size: 15, weight: FontWeight.w800)),
-                const SizedBox(width: 10),
+                Text('#${o.id.substring(0, 8).toUpperCase()}', style: RMType.body(size: 15, weight: FontWeight.w800)),
+                const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: channelColor[o.ch]!.withValues(alpha: 0.09), borderRadius: BorderRadius.circular(8)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     StatusDot(channelColor[o.ch]!, size: 7),
-                    const SizedBox(width: 5),
+                    const SizedBox(width: 4),
                     Text(channelLabel[o.ch]!, style: RMType.body(size: 11, weight: FontWeight.w700, color: channelColor[o.ch]!)),
                   ]),
                 ),
                 const Spacer(),
-                Icon(AppIcons.of('clock'), size: 14, color: o.late ? RM.danger : RM.muted),
-                const SizedBox(width: 4),
-                Text(o.late ? '${o.time} · late' : o.time, style: RMType.body(size: 12, weight: FontWeight.w600, color: o.late ? RM.danger : RM.muted)),
+                Icon(AppIcons.of('clock'), size: 13, color: o.late ? RM.danger : RM.muted),
+                const SizedBox(width: 3),
+                Text(o.late ? '${o.time} · trễ' : o.time, style: RMType.body(size: 11.5, weight: FontWeight.w600, color: o.late ? RM.danger : RM.muted)),
               ]),
             ),
           ),
@@ -262,7 +262,7 @@ class OrderCard extends StatelessWidget {
             ),
             child: Row(children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Total', style: RMType.body(size: 11, color: RM.muted)),
+                Text('Tổng', style: RMType.body(size: 11, color: RM.muted)),
                 Text(vnd(o.total), style: RMType.body(size: 15, weight: FontWeight.w800)),
               ]),
               const SizedBox(width: 10),
@@ -330,7 +330,7 @@ class DenseRow extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Text('#${o.id}', style: RMType.body(size: 13.5, weight: FontWeight.w800)),
+                Text('#${o.id.substring(0,8).toUpperCase()}', style: RMType.body(size: 13.5, weight: FontWeight.w800)),
                 const SizedBox(width: 7),
                 Flexible(child: Text(o.cust, maxLines: 1, overflow: TextOverflow.ellipsis, style: RMType.body(size: 12.5, weight: FontWeight.w600, color: RM.ink70))),
                 if (o.late) ...[
@@ -469,7 +469,7 @@ class OrderDetailBody extends StatelessWidget {
                 ),
               const SizedBox(height: 14),
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text('Total', style: RMType.body(size: 16, weight: FontWeight.w700)),
+                Text('Tổng', style: RMType.body(size: 16, weight: FontWeight.w700)),
                 Text(vnd(order.total), style: RMType.display(size: 22, color: RM.brandDeep)),
               ]),
             ],
@@ -1236,7 +1236,7 @@ class _TabletOrderRow extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Text('#${o.id}', style: RMType.body(size: 15, weight: FontWeight.w800)),
+                Text('#${o.id.substring(0,8).toUpperCase()}', style: RMType.body(size: 15, weight: FontWeight.w800)),
                 const SizedBox(width: 7),
                 StatusDot(channelColor[o.ch]!, size: 7),
                 const SizedBox(width: 4),

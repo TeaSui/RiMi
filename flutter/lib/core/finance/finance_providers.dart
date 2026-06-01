@@ -122,7 +122,7 @@ class FinanceNotifier extends AsyncNotifier<void> {
     );
 
     try {
-      await _dio.post<dynamic>('/v1/finance/income', data: <String, dynamic>{
+      await _dio.post<dynamic>('/finance/income', data: <String, dynamic>{
         'id': id,
         'amount': amount,
         'category': category,
@@ -156,7 +156,7 @@ class FinanceNotifier extends AsyncNotifier<void> {
     );
 
     try {
-      await _dio.post<dynamic>('/v1/finance/expenses', data: <String, dynamic>{
+      await _dio.post<dynamic>('/finance/expenses', data: <String, dynamic>{
         'id': id,
         'amount': amount,
         'category': category,
@@ -173,7 +173,7 @@ class FinanceNotifier extends AsyncNotifier<void> {
     if (wsId.isEmpty) return;
     try {
       final incResp =
-          await _dio.get<Map<String, dynamic>>('/v1/finance/income');
+          await _dio.get<Map<String, dynamic>>('/finance/income');
       final incData = incResp.data?['data'] as Map<String, dynamic>?;
       final incList =
           (incData?['income'] as List?)?.cast<Map<String, dynamic>>() ?? [];
@@ -198,7 +198,7 @@ class FinanceNotifier extends AsyncNotifier<void> {
       }
 
       final expResp =
-          await _dio.get<Map<String, dynamic>>('/v1/finance/expenses');
+          await _dio.get<Map<String, dynamic>>('/finance/expenses');
       final expData = expResp.data?['data'] as Map<String, dynamic>?;
       final expList =
           (expData?['expenses'] as List?)?.cast<Map<String, dynamic>>() ?? [];

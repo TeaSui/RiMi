@@ -58,7 +58,7 @@ class EinvoiceNotifier extends AsyncNotifier<void> {
     );
 
     try {
-      await _dio.post<dynamic>('/v1/einvoices', data: <String, dynamic>{
+      await _dio.post<dynamic>('/einvoices', data: <String, dynamic>{
         'id': id,
         'order_id': orderId,
         'provider': provider,
@@ -78,7 +78,7 @@ class EinvoiceNotifier extends AsyncNotifier<void> {
     if (wsId.isEmpty) return;
     try {
       final resp =
-          await _dio.get<Map<String, dynamic>>('/v1/einvoices');
+          await _dio.get<Map<String, dynamic>>('/einvoices');
       final data = resp.data?['data'] as Map<String, dynamic>?;
       final list =
           (data?['invoices'] as List?)?.cast<Map<String, dynamic>>() ?? [];

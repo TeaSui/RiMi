@@ -65,7 +65,7 @@ class AiChatNotifier extends Notifier<AiChatState> {
     double? costUsd,
   }) async {
     try {
-      await _dio.post<dynamic>('/v1/ai/usage', data: <String, dynamic>{
+      await _dio.post<dynamic>('/ai/usage', data: <String, dynamic>{
         'model': model,
         'feature': feature,
         'tokens_in': tokensIn,

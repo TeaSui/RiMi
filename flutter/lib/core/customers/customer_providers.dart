@@ -59,7 +59,7 @@ class CustomersNotifier extends AsyncNotifier<void> {
     );
 
     try {
-      await _dio.post<dynamic>('/v1/customers', data: <String, dynamic>{
+      await _dio.post<dynamic>('/customers', data: <String, dynamic>{
         'id': id,
         'name': name.isNotEmpty ? name : null,
         'phone': phone?.isNotEmpty == true ? phone : null,
@@ -83,7 +83,7 @@ class CustomersNotifier extends AsyncNotifier<void> {
 
     try {
       await _dio.patch<dynamic>(
-        '/v1/customers/$customerId',
+        '/customers/$customerId',
         data: <String, dynamic>{'tier': tier},
       );
     } on DioException {
@@ -99,7 +99,7 @@ class CustomersNotifier extends AsyncNotifier<void> {
     if (wsId.isEmpty) return;
     try {
       final resp =
-          await _dio.get<Map<String, dynamic>>('/v1/customers');
+          await _dio.get<Map<String, dynamic>>('/customers');
       final data = resp.data?['data'] as Map<String, dynamic>?;
       final list =
           (data?['customers'] as List?)?.cast<Map<String, dynamic>>() ?? [];

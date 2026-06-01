@@ -59,7 +59,7 @@ class ProductsNotifier extends AsyncNotifier<void> {
 
     // Best-effort server call — offline is handled by the sync layer.
     try {
-      await _dio.post<dynamic>('/v1/products', data: <String, dynamic>{
+      await _dio.post<dynamic>('/products', data: <String, dynamic>{
         'id': id,
         'name': name,
         'description': description,
@@ -80,7 +80,7 @@ class ProductsNotifier extends AsyncNotifier<void> {
     );
 
     try {
-      await _dio.delete<dynamic>('/v1/products/$id');
+      await _dio.delete<dynamic>('/products/$id');
     } on DioException {
       // Offline — local delete persisted.
     }
@@ -93,7 +93,7 @@ class ProductsNotifier extends AsyncNotifier<void> {
     final wsId = _workspaceId;
     if (wsId.isEmpty) return;
     try {
-      final resp = await _dio.get<Map<String, dynamic>>('/v1/products');
+      final resp = await _dio.get<Map<String, dynamic>>('/products');
       final data = resp.data?['data'] as Map<String, dynamic>?;
       final list = (data?['products'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 

@@ -46,7 +46,7 @@ class OrdersNotifier extends AsyncNotifier<void> {
     );
     try {
       await _dio.put<dynamic>(
-        '/v1/orders/$orderId/status',
+        '/orders/$orderId/status',
         data: <String, dynamic>{'status': newStatus},
       );
     } on DioException {
@@ -79,7 +79,7 @@ class OrdersNotifier extends AsyncNotifier<void> {
       ),
     );
     try {
-      await _dio.post<dynamic>('/v1/orders', data: <String, dynamic>{
+      await _dio.post<dynamic>('/orders', data: <String, dynamic>{
         'id': id,
         'channel': channel,
         'customer_name': customerName.isEmpty ? null : customerName,
@@ -98,7 +98,7 @@ class OrdersNotifier extends AsyncNotifier<void> {
     final wsId = _workspaceId;
     if (wsId.isEmpty) return;
     try {
-      final resp = await _dio.get<Map<String, dynamic>>('/v1/orders');
+      final resp = await _dio.get<Map<String, dynamic>>('/orders');
       final data = resp.data?['data'] as Map<String, dynamic>?;
       final list =
           (data?['orders'] as List?)?.cast<Map<String, dynamic>>() ?? [];

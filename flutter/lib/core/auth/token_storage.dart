@@ -22,92 +22,38 @@ class TokenStorage {
 
   final FlutterSecureStorage _storage;
 
-  static const _iosOptions = IOSOptions(
-    accessibility: KeychainAccessibility.first_unlock_this_device,
-  );
-  // encryptedSharedPreferences is deprecated in v10+ — custom cipher is used
-  // automatically. Just enable Android-specific options.
-  static const _androidOptions = AndroidOptions();
-
+  // Use platform defaults — no custom IOSOptions to avoid Keychain deadlocks
+  // on iOS 18 simulator. Production builds can re-enable strict accessibility
+  // once simulator behaviour is confirmed stable.
   Future<void> storeTokens({
     required String accessToken,
     required String refreshToken,
     String? activeWorkspaceId,
   }) async {
-    await _storage.write(
-      key: _Keys.accessToken,
-      value: accessToken,
-      iOptions: _iosOptions,
-      aOptions: _androidOptions,
-    );
-    await _storage.write(
-      key: _Keys.refreshToken,
-      value: refreshToken,
-      iOptions: _iosOptions,
-      aOptions: _androidOptions,
-    );
+    await _storage.write(key: _Keys.accessToken, value: accessToken);
+    await _storage.write(key: _Keys.refreshToken, value: refreshToken);
     if (activeWorkspaceId != null) {
-      await _storage.write(
-        key: _Keys.activeWorkspaceId,
-        value: activeWorkspaceId,
-        iOptions: _iosOptions,
-        aOptions: _androidOptions,
-      );
+      await _storage.write(key: _Keys.activeWorkspaceId, value: activeWorkspaceId);
     }
   }
 
   Future<void> storeActiveWorkspaceId(String? workspaceId) async {
     if (workspaceId == null) {
-      await _storage.delete(
-        key: _Keys.activeWorkspaceId,
-        iOptions: _iosOptions,
-        aOptions: _androidOptions,
-      );
+      await _storage.delete(key: _Keys.activeWorkspaceId);
     } else {
-      await _storage.write(
-        key: _Keys.activeWorkspaceId,
-        value: workspaceId,
-        iOptions: _iosOptions,
-        aOptions: _androidOptions,
-      );
+      await _storage.write(key: _Keys.activeWorkspaceId, value: workspaceId);
     }
   }
 
-  Future<String?> getAccessToken() => _storage.read(
-        key: _Keys.accessToken,
-        iOptions: _iosOptions,
-        aOptions: _androidOptions,
-      );
-
-  Future<String?> getRefreshToken() => _storage.read(
-        key: _Keys.refreshToken,
-        iOptions: _iosOptions,
-        aOptions: _androidOptions,
-      );
-
-  Future<String?> getActiveWorkspaceId() => _storage.read(
-        key: _Keys.activeWorkspaceId,
-        iOptions: _iosOptions,
-        aOptions: _androidOptions,
-      );
+  Future<String?> getAccessToken() => _storage.read(key: _Keys.accessToken);
+  Future<String?> getRefreshToken() => _storage.read(key: _Keys.refreshToken);
+  Future<String?> getActiveWorkspaceId() => _storage.read(key: _Keys.activeWorkspaceId);
 
   /// CLIENT-02: Clear all tokens on logout / forced logout.
   Future<void> clearAll() async {
-    await _storage.delete(
-      key: _Keys.accessToken,
-      iOptions: _iosOptions,
-      aOptions: _androidOptions,
-    );
-    await _storage.delete(
-      key: _Keys.refreshToken,
-      iOptions: _iosOptions,
-      aOptions: _androidOptions,
-    );
-    await _storage.delete(
-      key: _Keys.activeWorkspaceId,
-      iOptions: _iosOptions,
-      aOptions: _androidOptions,
-    );
+    await _storage.delete(key: _Keys.accessToken);
+    await _storage.delete(key: _Keys.refreshToken);
+    await _storage.delete(key: _Keys.activeWorkspaceId);
   }
 }
 

@@ -118,6 +118,44 @@ class ProductsNotifier extends AsyncNotifier<void> {
     }
   }
 
+
+  /// Adjusts the stock quantity of a product by [delta] (positive = restock, negative = sold).
+  Future<void> adjustStock(String productId, int delta, {String reason = ''}) async {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    // Update local Drift quantity optimistically
+    final products = await _db.productsDao.listByWorkspace(_workspaceId);
+    final p = products.where((x) => x.id == productId).firstOrNull;
+    if (p == null) return;
+    final newQty = (p.quantity + delta).clamp(0, 99999);
+    await _db.productsDao.upsert(ProductsCompanion(
+      id: Value(productId),
+      quantity: Value(newQty),
+      updatedAt: Value(nowMs),
+    ));
+    // Push to server — inventory_items requires variant_id, which we store as productId for now
+    try {
+      await _dio.post<dynamic>('/inventory/$productId/adjust', data: <String, dynamic>{
+        'delta': delta,
+        'reason': reason.isNotEmpty ? reason : (delta > 0 ? 'Nhập hàng' : 'Bán hàng'),
+      });
+    } on DioException {
+      // Offline — local update persisted.
+    }
+  }
+
+  /// Increments soldToday for a product when an order containing it is completed.
+  Future<void> recordSold(String productId, int qty) async {
+    final products = await _db.productsDao.listByWorkspace(_workspaceId);
+    final p = products.where((x) => x.id == productId).firstOrNull;
+    if (p == null) return;
+    await _db.productsDao.upsert(ProductsCompanion(
+      id: Value(productId),
+      soldToday: Value(p.soldToday + qty),
+      quantity: Value((p.quantity - qty).clamp(0, 99999)),
+      updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+  }
+
   static int _parseMs(String? iso) {
     if (iso == null || iso.isEmpty) return 0;
     return DateTime.tryParse(iso)?.millisecondsSinceEpoch ?? 0;

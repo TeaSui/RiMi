@@ -136,7 +136,7 @@ class _LowStockBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     if (compact) {
       return GestureDetector(
-        onTap: () => rmToast(context, 'Reviewing low stock'),
+        onTap: () => rmToast(context, 'Đang xem hàng sắp hết'),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -163,7 +163,7 @@ class _LowStockBanner extends StatelessWidget {
       );
     }
     return GestureDetector(
-      onTap: () => rmToast(context, 'Reviewing low stock'),
+      onTap: () => rmToast(context, 'Đang xem hàng sắp hết'),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -232,7 +232,7 @@ class _ProductsMobileState extends ConsumerState<ProductsMobile> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(
         child: Text(
-          'Failed to load products',
+          'Không tải được thực đơn',
           style: RMType.body(size: 14, color: RM.muted),
         ),
       ),
@@ -371,6 +371,93 @@ class _ProductsMobileState extends ConsumerState<ProductsMobile> {
   }
 }
 
+
+void _showStockSheet(BuildContext context, WidgetRef ref, Product p) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: RM.cream,
+    builder: (_) => _StockAdjustSheet(product: p, widgetRef: ref),
+  );
+}
+
+class _StockAdjustSheet extends StatefulWidget {
+  const _StockAdjustSheet({required this.product, required this.widgetRef});
+  final Product product;
+  final WidgetRef widgetRef;
+  @override
+  State<_StockAdjustSheet> createState() => _StockAdjustSheetState();
+}
+
+class _StockAdjustSheetState extends State<_StockAdjustSheet> {
+  int _delta = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.product;
+    final newQty = (p.quantity + _delta).clamp(0, 9999);
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        SheetHeader(p.name),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          child: Column(children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('Tồn kho hiện tại', style: RMType.body(size: 13, color: RM.muted)),
+              Text('\${p.quantity}', style: RMType.body(size: 15, weight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 20),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              GestureDetector(
+                onTap: () => setState(() => _delta--),
+                child: Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(color: RM.dangerSoft, borderRadius: BorderRadius.circular(14)),
+                  child: const Icon(Icons.remove_rounded, color: RM.danger, size: 24),
+                ),
+              ),
+              const SizedBox(width: 24),
+              Column(children: [
+                Text('\$_delta', style: RMType.display(size: 32, color: _delta > 0 ? RM.herb : _delta < 0 ? RM.danger : RM.ink)),
+                Text('thay đổi', style: RMType.body(size: 11, color: RM.muted)),
+              ]),
+              const SizedBox(width: 24),
+              GestureDetector(
+                onTap: () => setState(() => _delta++),
+                child: Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(color: RM.herbSoft, borderRadius: BorderRadius.circular(14)),
+                  child: const Icon(Icons.add_rounded, color: RM.herb, size: 24),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 16),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text('Sau điều chỉnh: ', style: RMType.body(size: 13, color: RM.muted)),
+              Text('\$newQty', style: RMType.body(size: 15, weight: FontWeight.w700,
+                  color: newQty == 0 ? RM.danger : newQty < 5 ? RM.gold : RM.herb)),
+            ]),
+            const SizedBox(height: 24),
+            SheetSubmit(
+              label: _delta == 0 ? 'Đóng' : 'Lưu tồn kho',
+              enabled: true,
+              onPressed: () async {
+                if (_delta != 0) {
+                  await widget.widgetRef.read(productsNotifierProvider.notifier)
+                      .adjustStock(p.id, _delta);
+                  if (context.mounted) rmToast(context, 'Đã cập nhật tồn kho');
+                }
+                if (context.mounted) Navigator.of(context).pop();
+              },
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
 class _ProductRow extends ConsumerWidget {
   const _ProductRow({required this.p});
   final Product p;
@@ -380,7 +467,7 @@ class _ProductRow extends ConsumerWidget {
     return Opacity(
       opacity: p.isActive ? 1 : 0.62,
       child: SoftCard(
-        onTap: () => rmToast(context, 'Sửa · ${p.name}'),
+        onTap: () => _showStockSheet(context, ref, p),
         child: Row(children: [
           FoodSlot(seed: p.seed, width: 56, height: 56, radius: 13),
           const SizedBox(width: 12),
@@ -428,7 +515,7 @@ class _ProductRow extends ConsumerWidget {
                 const SizedBox(height: 3),
                 Text(
                   p.isActive
-                      ? '${p.soldToday} sold today'
+                      ? 'Đã bán ${p.soldToday} hôm nay'
                       : 'Ẩn khỏi thực đơn',
                   style: RMType.body(size: 11.5, color: RM.muted),
                 ),
@@ -488,7 +575,7 @@ class _ProductsTabletState extends ConsumerState<ProductsTablet> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(
         child: Text(
-          'Failed to load products',
+          'Không tải được thực đơn',
           style: RMType.body(size: 15, color: RM.muted),
         ),
       ),
@@ -733,7 +820,7 @@ class _ProductCardTablet extends ConsumerWidget {
                       ),
                       const Spacer(),
                       Text(
-                        '${p.soldToday} sold',
+                        'Đã bán ${p.soldToday}',
                         style: RMType.body(
                           size: 12,
                           weight: FontWeight.w600,

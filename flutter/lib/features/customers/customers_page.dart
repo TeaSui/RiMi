@@ -269,7 +269,7 @@ class _CrmStats extends StatelessWidget {
       for (final s in [
         ('Tổng chi', '$total'),
         ('VIP', '$vipCount'),
-        ('Repeat', '—'),
+        ('Mua lại', '—'),
       ]) ...[
         Expanded(
           child: SoftCard(
@@ -288,7 +288,7 @@ class _CrmStats extends StatelessWidget {
                 ]),
           ),
         ),
-        if (s.$1 != 'Repeat') const SizedBox(width: 10),
+        if (s.$1 != 'Mua lại') const SizedBox(width: 10),
       ],
     ]);
   }
@@ -390,8 +390,8 @@ class CustomerDetail extends StatelessWidget {
               Row(children: [
                 for (final s in [
                   ('Đơn hàng', '${cust.orderCount}'),
-                  ('Spent', cust.totalSpent),
-                  ('Area', cust.area),
+                  ('Đã chi', cust.totalSpent),
+                  ('Khu vực', cust.area),
                 ]) ...[
                   Expanded(
                     child: Container(
@@ -416,7 +416,7 @@ class CustomerDetail extends StatelessWidget {
                           ]),
                     ),
                   ),
-                  if (s.$1 != 'Area') const SizedBox(width: 12),
+                  if (s.$1 != 'Khu vực') const SizedBox(width: 12),
                 ],
               ]),
               if (cust.tier == 'risk') ...[
@@ -451,7 +451,7 @@ class CustomerDetail extends StatelessWidget {
             Expanded(
               child: OutlinedButton(
                 onPressed: () =>
-                    rmToast(context, 'Loyalty message sent'),
+                    rmToast(context, 'Đã gửi tin nhắn'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: RM.ink70,
                   side: const BorderSide(color: RM.line, width: 1.5),
@@ -469,7 +469,7 @@ class CustomerDetail extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton.icon(
-                onPressed: () => rmToast(context, 'Voucher sent'),
+                onPressed: () => rmToast(context, 'Đã gửi ưu đãi'),
                 style: FilledButton.styleFrom(
                     backgroundColor: RM.brand,
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -567,7 +567,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Customers', style: RMType.display(size: 24)),
+              Text('Khách hàng', style: RMType.display(size: 24)),
               Text('${all.length} total · $vipCount VIP',
                   style: RMType.body(size: 12.5, color: RM.muted)),
             ]),
@@ -670,7 +670,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Customers', style: RMType.display(size: 24)),
+                  Text('Khách hàng', style: RMType.display(size: 24)),
                   Text('${all.length} total · $vipCount VIP',
                       style: RMType.body(size: 12.5, color: RM.muted)),
                 ]),

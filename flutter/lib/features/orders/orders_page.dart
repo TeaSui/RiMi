@@ -392,7 +392,7 @@ class OrderDetailBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final order = o;
     if (order == null) {
-      return Center(child: Text('Select an order', style: RMType.body(size: 14, color: RM.muted)));
+      return Center(child: Text('Chọn đơn hàng', style: RMType.body(size: 14, color: RM.muted)));
     }
     final ss = statusStyle[order.status]!;
     final lines = _parseLines(order.items);
@@ -417,7 +417,7 @@ class OrderDetailBody extends StatelessWidget {
               const Spacer(),
               const RmIcon('clock', size: 14, color: RM.danger),
               const SizedBox(width: 5),
-              Text('Running late', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.danger)),
+              Text('Đang trễ', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.danger)),
             ],
           ]),
         ),
@@ -481,7 +481,7 @@ class OrderDetailBody extends StatelessWidget {
           child: Row(children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () => rmToast(context, 'Bill sent to printer'),
+                onPressed: () => rmToast(context, 'Đã gửi hoá đơn đến máy in'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: RM.ink70,
                   side: const BorderSide(color: RM.line, width: 1.5),
@@ -523,7 +523,7 @@ class OrderDetailBody extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: Text('Completed', style: RMType.body(size: 14.5, weight: FontWeight.w700, color: RM.faint)),
+                      child: Text('Hoàn thành', style: RMType.body(size: 14.5, weight: FontWeight.w700, color: RM.faint)),
                     ),
             ),
           ]),
@@ -740,7 +740,7 @@ class _NewOrderComposerState extends ConsumerState<_NewOrderComposer> {
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: Text('Create order', style: RMType.body(size: 15, weight: FontWeight.w700, color: _count > 0 ? Colors.white : RM.faint)),
+                    child: Text('Tạo đơn', style: RMType.body(size: 15, weight: FontWeight.w700, color: _count > 0 ? Colors.white : RM.faint)),
                   ),
                 ),
               ]),
@@ -887,7 +887,7 @@ class _OrdersMobileState extends ConsumerState<OrdersMobile> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Orders', style: RMType.display(size: 24)),
+                        Text('Đơn hàng', style: RMType.display(size: 24)),
                         Text(
                             '${orders.length} today · $activeCount active',
                             style: RMType.body(
@@ -1102,7 +1102,7 @@ class _OrdersTabletState extends ConsumerState<OrdersTablet> {
               child: Row(children: [
                 Expanded(
                     child:
-                        Text('Orders', style: RMType.display(size: 24))),
+                        Text('Đơn hàng', style: RMType.display(size: 24))),
                 _IconBtn(
                     icon: 'search',
                     active: _searchOpen,

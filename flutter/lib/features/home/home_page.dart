@@ -52,7 +52,7 @@ class _SearchAiBar extends StatelessWidget {
           children: [
             const RmIcon('search', size: 20, color: RM.muted),
             const SizedBox(width: 10),
-            Expanded(child: Text('Search or ask RiMi AI…', style: RMType.body(size: 14, color: RM.muted))),
+            Expanded(child: Text('Tìm kiếm hoặc hỏi RiMi AI…', style: RMType.body(size: 14, color: RM.muted))),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -312,7 +312,7 @@ class HomeMobile extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             GestureDetector(
-              onTap: () => rmToast(context, 'No new notifications'),
+              onTap: () => rmToast(context, 'Chưa có thông báo'),
               child: Container(
                 width: 40,
                 height: 40,
@@ -483,7 +483,7 @@ class HomeTablet extends ConsumerWidget {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               onPressed: () => AppNav.openAiTeam(),
-                              child: Text('Create promo', style: RMType.body(size: 13.5, weight: FontWeight.w700, color: Colors.white)),
+                              child: Text('Tạo khuyến mãi', style: RMType.body(size: 13.5, weight: FontWeight.w700, color: Colors.white)),
                             ),
                           ),
                         ],

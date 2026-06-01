@@ -21,7 +21,7 @@ List<(String, double, double)> _buildChartData(
 ) {
   final now = DateTime.now();
 
-  if (period == 'Day') {
+  if (period == 'Ngày') {
     // Group by 2-hour blocks for today.
     final slots = <int, (double, double)>{};
     for (var h = 8; h <= 20; h += 2) {
@@ -59,10 +59,10 @@ List<(String, double, double)> _buildChartData(
     ];
   }
 
-  if (period == 'Week') {
+  if (period == 'Tuần') {
     // Monday-indexed days this week.
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
     final slots = List.generate(7, (_) => (0.0, 0.0));
     for (final e in income) {
       final dt = DateTime.fromMillisecondsSinceEpoch(e.createdAt);
@@ -246,7 +246,7 @@ class PeriodToggle extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: RM.line)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        for (final p in ['Day', 'Week', 'Month'])
+        for (final p in ['Ngày', 'Tuần', 'Tháng'])
           GestureDetector(
             onTap: () => onChange(p),
             child: Container(
@@ -277,7 +277,7 @@ class FinanceMobile extends ConsumerStatefulWidget {
 }
 
 class _FinanceMobileState extends ConsumerState<FinanceMobile> {
-  String _period = 'Week';
+  String _period = 'Tuần';
 
   @override
   void initState() {
@@ -313,7 +313,7 @@ class _FinanceMobileState extends ConsumerState<FinanceMobile> {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Finance', style: RMType.display(size: 24)),
+                  Text('Tài chính', style: RMType.display(size: 24)),
                   Text(periodLabel,
                       style: RMType.body(size: 12.5, color: RM.muted)),
                 ]),
@@ -404,7 +404,7 @@ class FinanceTablet extends ConsumerStatefulWidget {
 }
 
 class _FinanceTabletState extends ConsumerState<FinanceTablet> {
-  String _period = 'Week';
+  String _period = 'Tuần';
   static const _kicons = ['finance', 'tag', 'up', 'orders'];
   static const _kcol = [RM.brand, RM.gold, RM.herb, RM.info];
 
@@ -453,7 +453,7 @@ class _FinanceTabletState extends ConsumerState<FinanceTablet> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Finance', style: RMType.display(size: 26)),
+                    Text('Tài chính', style: RMType.display(size: 26)),
                     Text(periodLabel,
                         style: RMType.body(size: 13, color: RM.muted)),
                   ]),
@@ -614,10 +614,10 @@ class _FinanceTabletState extends ConsumerState<FinanceTablet> {
 
 String _periodLabel(String period) {
   final now = DateTime.now();
-  if (period == 'Day') {
+  if (period == 'Ngày') {
     return 'Hôm nay · ${now.day} ${_monthName(now.month)}';
   }
-  if (period == 'Week') {
+  if (period == 'Tuần') {
     final start = now.subtract(Duration(days: now.weekday - 1));
     return 'Tuần này · ${start.day}–${now.day} ${_monthName(now.month)}';
   }
@@ -627,18 +627,18 @@ String _periodLabel(String period) {
 String _monthName(int m) {
   const names = [
     '',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
+    'T1',
+    'T2',
+    'T3',
+    'T4',
+    'T5',
+    'T6',
+    'T7',
+    'T8',
+    'T9',
+    'T10',
+    'T11',
+    'T12'
   ];
   return names[m];
 }

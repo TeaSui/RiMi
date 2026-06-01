@@ -58,8 +58,8 @@ GoRouter createRouter(WidgetRef ref) {
           return location == AppRoutes.splash ? null : AppRoutes.splash;
 
         case AuthStatus.unauthenticated:
-          // Allow auth routes; redirect everything else to login.
-          if (location == AppRoutes.splash || isAuthRoute) return null;
+          // Allow auth routes only; redirect splash and everything else to login.
+          if (isAuthRoute) return null;
           return AppRoutes.login;
 
         case AuthStatus.verifiedNoWorkspace:

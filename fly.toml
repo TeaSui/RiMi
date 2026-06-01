@@ -7,7 +7,7 @@ primary_region = "sin"   # Singapore — closest to Vietnam
 
 [build]
   dockerfile = "server/Dockerfile"
-  build_target = ""
+  build_context = "server"
 
 [env]
   PORT = "8080"

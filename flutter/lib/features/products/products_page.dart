@@ -209,6 +209,14 @@ class _ProductsMobileState extends ConsumerState<ProductsMobile> {
   final _search = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(productsNotifierProvider.notifier).refreshFromServer();
+    });
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     super.dispose();
@@ -452,6 +460,14 @@ class ProductsTablet extends ConsumerStatefulWidget {
 class _ProductsTabletState extends ConsumerState<ProductsTablet> {
   String _cat = 'All';
   final _search = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(productsNotifierProvider.notifier).refreshFromServer();
+    });
+  }
 
   @override
   void dispose() {

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/api_exception.dart';
+import '../workspace/workspace_notifier.dart';
 import '../workspace/workspace_repository.dart';
 import 'auth_repository.dart';
 import 'auth_state.dart';
@@ -175,6 +176,10 @@ class AuthNotifier extends Notifier<AuthState> {
       email: me.email,
       activeWorkspaceId: wsId,
     );
+    // Eagerly load workspace list so home screen shows real name immediately.
+    if (wsId != null) {
+      ref.read(workspaceNotifierProvider.notifier).loadWorkspaces().ignore();
+    }
   }
 }
 

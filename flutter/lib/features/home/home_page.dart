@@ -212,7 +212,7 @@ class _ActiveOrderRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Order #${o.id}', style: RMType.body(size: 14.5, weight: FontWeight.w700)),
+                Text('#${o.id.substring(0, 8).toUpperCase()}', style: RMType.body(size: 14.5, weight: FontWeight.w700)),
                 Text(o.items, maxLines: 1, overflow: TextOverflow.ellipsis, style: RMType.body(size: 12.5, color: RM.muted)),
                 const SizedBox(height: 4),
                 Row(children: [

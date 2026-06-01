@@ -53,7 +53,7 @@ CustDisplay _toDisplay(drift.Customer d) {
     id: d.id,
     name: d.name ?? '—',
     phone: d.phone ?? '—',
-    area: d.area ?? 'Khách lẻ',
+    area: d.area ?? 'Walk-in',
     tier: d.tier,
     orderCount: d.orderCount,
     totalSpent: d.totalSpent,
@@ -94,7 +94,7 @@ class _AddCustomerComposerState extends ConsumerState<_AddCustomerComposer> {
         );
     if (mounted) {
       Navigator.of(context).pop(true);
-      rmToast(context, 'Đã thêm khách hàng');
+      rmToast(context, 'Customer added');
     }
   }
 
@@ -114,14 +114,14 @@ class _AddCustomerComposerState extends ConsumerState<_AddCustomerComposer> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SheetHeader('Thêm khách hàng'),
+          const SheetHeader('Add customer'),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
             child: Column(children: [
               RmTextField(
-                label: 'HỌ TÊN',
+                label: 'NAME',
                 controller: _name,
-                hint: 'VD: Chị Hương Lê',
+                hint: 'e.g. Chị Hương Lê',
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
               ),
@@ -129,7 +129,7 @@ class _AddCustomerComposerState extends ConsumerState<_AddCustomerComposer> {
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(
                   child: RmTextField(
-                    label: 'SỐ ĐIỆN THOẠI',
+                    label: 'PHONE',
                     controller: _phone,
                     hint: '0909 …',
                     keyboard: TextInputType.phone,
@@ -138,7 +138,7 @@ class _AddCustomerComposerState extends ConsumerState<_AddCustomerComposer> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: RmTextField(
-                    label: 'KHU VỰC',
+                    label: 'AREA',
                     controller: _area,
                     hint: 'Q.1 / GrabFood',
                   ),
@@ -171,7 +171,7 @@ class _AddCustomerComposerState extends ConsumerState<_AddCustomerComposer> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             child: SheetSubmit(
-              label: 'Thêm khách hàng',
+              label: 'Add customer',
               enabled: _name.text.trim().isNotEmpty,
               onPressed: _create,
             ),
@@ -325,7 +325,7 @@ class CustomerDetail extends StatelessWidget {
     final cust = c;
     if (cust == null) {
       return Center(
-          child: Text('Chọn khách hàng',
+          child: Text('Select a customer',
               style: RMType.body(size: 14, color: RM.muted)));
     }
     final t = tiers[cust.tier]!;
@@ -389,7 +389,7 @@ class CustomerDetail extends StatelessWidget {
             children: [
               Row(children: [
                 for (final s in [
-                  ('Đơn hàng', '${cust.orderCount}'),
+                  ('Orders', '${cust.orderCount}'),
                   ('Spent', cust.totalSpent),
                   ('Area', cust.area),
                 ]) ...[
@@ -459,7 +459,7 @@ class CustomerDetail extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
-                child: Text('Nhắn tin',
+                child: Text('Send message',
                     style: RMType.body(
                         size: 14.5,
                         weight: FontWeight.w700,
@@ -477,7 +477,7 @@ class CustomerDetail extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14))),
                 icon: const Icon(Icons.card_giftcard_rounded,
                     size: 18, color: Colors.white),
-                label: Text('Gửi ưu đãi',
+                label: Text('Send voucher',
                     style: RMType.body(
                         size: 14.5,
                         weight: FontWeight.w700,
@@ -547,7 +547,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
             isTablet(context) ? _tablet(context, all) : SafeArea(child: _mobile(context, all)),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-            child: Text('Không tải được khách hàng',
+            child: Text('Could not load customers',
                 style: RMType.body(size: 14, color: RM.muted))),
       ),
     );
@@ -623,7 +623,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 40),
                 child: Center(
-                    child: Text('Chưa có khách hàng',
+                    child: Text('No customers found',
                         style: RMType.body(size: 14, color: RM.muted))),
               )
             else
@@ -701,7 +701,7 @@ class _CustomersPageState extends ConsumerState<CustomersPage> {
       Expanded(
         child: list.isEmpty
             ? Center(
-                child: Text('Chưa có khách hàng',
+                child: Text('No customers found',
                     style: RMType.body(size: 14, color: RM.muted)))
             : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
@@ -828,7 +828,7 @@ class _SearchBox extends StatelessWidget {
             decoration: InputDecoration(
               isDense: true,
               border: InputBorder.none,
-              hintText: 'Tìm tên, điện thoại, khu vực…',
+              hintText: 'Search name, phone, area…',
               hintStyle: RMType.body(size: 13.5, color: RM.faint),
             ),
           ),

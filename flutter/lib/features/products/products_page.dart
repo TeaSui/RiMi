@@ -12,7 +12,7 @@ import '../../widgets/forms.dart';
 import '../../widgets/primitives.dart';
 
 String _stockLabel(Product p) =>
-    p.quantity == 0 ? 'Hết hàng' : '${p.quantity} còn';
+    p.quantity == 0 ? 'Sold out' : '${p.quantity} left';
 
 // ── Add-dish composer ────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ class _AddDishComposerState extends ConsumerState<_AddDishComposer> {
         );
     if (mounted) {
       Navigator.of(context).pop(true);
-      rmToast(context, 'Đã thêm món vào thực đơn');
+      rmToast(context, 'Dish added to menu');
     }
   }
 
@@ -65,20 +65,20 @@ class _AddDishComposerState extends ConsumerState<_AddDishComposer> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SheetHeader('Thêm món'),
+          const SheetHeader('Add dish'),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
             child: Column(children: [
               RmTextField(
-                label: 'TÊN MÓN',
+                label: 'DISH NAME',
                 controller: _name,
-                hint: 'VD: Phở bò tái',
+                hint: 'e.g. Phở bò tái',
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
               RmTextField(
-                label: 'GIÁ (₫)',
+                label: 'PRICE (₫)',
                 controller: _price,
                 hint: '55000',
                 keyboard: TextInputType.number,
@@ -115,7 +115,7 @@ class _AddDishComposerState extends ConsumerState<_AddDishComposer> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             child: SheetSubmit(
-              label: 'Thêm vào thực đơn',
+              label: 'Add to menu',
               enabled: _valid,
               onPressed: _create,
             ),
@@ -154,7 +154,7 @@ class _LowStockBanner extends StatelessWidget {
                     RMType.body(size: 13.5, weight: FontWeight.w700),
               ),
               Text(
-                'Xem và đặt lại',
+                'Review & reorder',
                 style: RMType.body(size: 12, color: RM.ink70),
               ),
             ],
@@ -182,7 +182,7 @@ class _LowStockBanner extends StatelessWidget {
                   style: RMType.body(size: 13.5, weight: FontWeight.w700),
                 ),
                 Text(
-                  'Nhấn để xem và đặt lại nguyên liệu',
+                  'Tap to review & reorder ingredients',
                   style: RMType.body(size: 12, color: RM.ink70),
                 ),
               ],
@@ -246,7 +246,7 @@ class _ProductsMobileState extends ConsumerState<ProductsMobile> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Thực đơn & Kho', style: RMType.display(size: 24)),
+                    Text('Menu & Stock', style: RMType.display(size: 24)),
                     Text(
                       '${products.length} dishes · $lowCount low on stock',
                       style: RMType.body(size: 12.5, color: RM.muted),
@@ -278,7 +278,8 @@ class _ProductsMobileState extends ConsumerState<ProductsMobile> {
                 ),
                 icon: const Icon(Icons.add_rounded,
                     size: 18, color: Colors.white),
-                label: Text('Thêm',
+                label: Text(
+                  'Add',
                   style: RMType.body(
                     size: 13.5,
                     weight: FontWeight.w700,
@@ -298,7 +299,7 @@ class _ProductsMobileState extends ConsumerState<ProductsMobile> {
                         const EdgeInsets.fromLTRB(20, 0, 20, 12),
                     child: _SearchInline(
                       controller: _search,
-                      hint: 'Tìm món…',
+                      hint: 'Search dishes…',
                       onChanged: () => setState(() {}),
                       onClose: () => setState(() {
                         _searchOpen = false;
@@ -335,7 +336,7 @@ class _ProductsMobileState extends ConsumerState<ProductsMobile> {
                         const EdgeInsets.symmetric(vertical: 40),
                     child: Center(
                       child: Text(
-                        'Không tìm thấy món nào',
+                        'No dishes found',
                         style: RMType.body(
                             size: 14, color: RM.muted),
                       ),
@@ -371,7 +372,7 @@ class _ProductRow extends ConsumerWidget {
     return Opacity(
       opacity: p.isActive ? 1 : 0.62,
       child: SoftCard(
-        onTap: () => rmToast(context, 'Sửa · ${p.name}'),
+        onTap: () => rmToast(context, 'Edit · ${p.name}'),
         child: Row(children: [
           FoodSlot(seed: p.seed, width: 56, height: 56, radius: 13),
           const SizedBox(width: 12),
@@ -420,7 +421,7 @@ class _ProductRow extends ConsumerWidget {
                 Text(
                   p.isActive
                       ? '${p.soldToday} sold today'
-                      : 'Ẩn khỏi thực đơn',
+                      : 'Hidden from menu',
                   style: RMType.body(size: 11.5, color: RM.muted),
                 ),
               ],
@@ -523,7 +524,7 @@ class _ProductsTabletState extends ConsumerState<ProductsTablet> {
                       child: Row(children: [
                         Expanded(
                           child: Text(
-                            c == 'All' ? 'Tất cả' : c,
+                            c == 'All' ? 'All dishes' : c,
                             style: RMType.body(
                               size: 14,
                               weight: c == _cat
@@ -558,7 +559,7 @@ class _ProductsTabletState extends ConsumerState<ProductsTablet> {
                   Row(children: [
                     Expanded(
                       child: Text(
-                        'Thực đơn & Kho',
+                        'Menu & Inventory',
                         style: RMType.display(size: 26),
                       ),
                     ),
@@ -566,7 +567,7 @@ class _ProductsTabletState extends ConsumerState<ProductsTablet> {
                       width: portrait ? 200 : 260,
                       child: _SearchInline(
                         controller: _search,
-                        hint: 'Tìm món…',
+                        hint: 'Search dishes…',
                         plain: true,
                         onChanged: () => setState(() {}),
                         onClose: () {},
@@ -604,7 +605,7 @@ class _ProductsTabletState extends ConsumerState<ProductsTablet> {
                       padding: const EdgeInsets.symmetric(vertical: 60),
                       child: Center(
                         child: Text(
-                          'Không tìm thấy món nào',
+                          'No dishes found',
                           style: RMType.body(size: 15, color: RM.muted),
                         ),
                       ),
@@ -640,7 +641,7 @@ class _ProductCardTablet extends ConsumerWidget {
     return Opacity(
       opacity: p.isActive ? 1 : 0.62,
       child: GestureDetector(
-        onTap: () => rmToast(context, 'Sửa · ${p.name}'),
+        onTap: () => rmToast(context, 'Edit · ${p.name}'),
         child: Container(
           decoration: BoxDecoration(
             color: RM.card,

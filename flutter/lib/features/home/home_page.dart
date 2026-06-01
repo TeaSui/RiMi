@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app.dart';
 import '../../core/app_icons.dart';
 import '../../core/auth/auth_notifier.dart';
+import '../../core/finance/finance_providers.dart';
 import '../../core/orders/order_providers.dart';
+import '../../core/workspace/workspace_notifier.dart';
 import '../../data/drift/app_database.dart' as drift;
 import '../../data/mock_data.dart';
 import '../../theme/app_theme.dart';
@@ -15,10 +17,10 @@ import '../workspace/workspace_chip.dart';
 
 // Quick-action descriptors (icon, label, fg, bg, destination key).
 const _quick = [
-  ('plus', 'New order', RM.brand, RM.brandSoft, 'orders'),
-  ('content', 'Make post', RM.gold, RM.goldSoft, 'content'),
-  ('products', 'Add dish', RM.herb, RM.herbSoft, 'products'),
-  ('users', 'Customers', RM.info, Color(0xFFE1ECF8), 'crm'),
+  ('plus', 'Đơn mới', RM.brand, RM.brandSoft, 'orders'),
+  ('content', 'Đăng bài', RM.gold, RM.goldSoft, 'content'),
+  ('products', 'Thêm món', RM.herb, RM.herbSoft, 'products'),
+  ('users', 'Khách hàng', RM.info, Color(0xFFE1ECF8), 'crm'),
 ];
 
 void _quickGo(BuildContext context, String key) {
@@ -70,14 +72,27 @@ class _SearchAiBar extends StatelessWidget {
   }
 }
 
-class _RevenueHero extends StatelessWidget {
+class _RevenueHero extends ConsumerWidget {
   const _RevenueHero({this.big = false});
   final bool big;
   @override
-  Widget build(BuildContext context) {
-    final stats = big
-        ? const [('38', 'Orders'), ('74.700₫', 'Avg / order'), ('6', 'In kitchen'), ('96%', 'On-time')]
-        : const [('38', 'Orders'), ('74.700₫', 'Avg / order'), ('6', 'In kitchen')];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wsId = ref.watch(authNotifierProvider).activeWorkspaceId ?? '';
+    final orders = ref.watch(ordersProvider(wsId)).maybeWhen(
+      data: (d) => d,
+      orElse: () => <drift.Order>[],
+    );
+    final pl = ref.watch(plSummaryProvider(wsId));
+    final todayRevenue = pl.totalIncome;
+    final totalOrders = orders.length;
+    final inKitchen = orders.where((o) => o.status == 'cooking' || o.status == 'new').length;
+    final avgOrder = totalOrders > 0 ? (todayRevenue / totalOrders) : 0.0;
+
+    final stats = [
+      ('$totalOrders', 'Đơn hàng'),
+      (vnd(avgOrder.toInt()), 'TB / đơn'),
+      ('$inKitchen', 'Đang làm'),
+    ];
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
       child: Container(
@@ -106,21 +121,22 @@ class _RevenueHero extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text('Revenue today', style: RMType.body(size: 13, weight: FontWeight.w600, color: Colors.white70)),
+                    Text('Doanh thu hôm nay', style: RMType.body(size: 13, weight: FontWeight.w600, color: Colors.white70)),
                     const Spacer(),
+                    if (totalOrders > 0)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                       decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8)),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         const Icon(Icons.north_east_rounded, size: 13, color: Colors.white),
                         const SizedBox(width: 3),
-                        Text(big ? '+12% vs yesterday' : '+12%', style: RMType.body(size: 12, weight: FontWeight.w700, color: Colors.white)),
+                        Text('$totalOrders đơn', style: RMType.body(size: 12, weight: FontWeight.w700, color: Colors.white)),
                       ]),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text('2.840.000₫', style: RMType.display(size: big ? 46 : 38, letterSpacing: -1, color: Colors.white)),
+                Text(vnd(todayRevenue.toInt()), style: RMType.display(size: big ? 46 : 38, letterSpacing: -1, color: Colors.white)),
                 SizedBox(height: big ? 22 : 14),
                 FittedBox(
                   fit: BoxFit.scaleDown,
@@ -257,10 +273,18 @@ class _ActiveOrders extends ConsumerWidget {
 
 // ── MOBILE ───────────────────────────────────────────────────────────
 
-class HomeMobile extends StatelessWidget {
+class HomeMobile extends ConsumerWidget {
   const HomeMobile({super.key});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authNotifierProvider);
+    final wsState = ref.watch(workspaceNotifierProvider);
+    final activeWs = wsState.workspaces
+        .where((w) => w.id == auth.activeWorkspaceId)
+        .firstOrNull;
+    final wsName = activeWs?.name ?? auth.displayName ?? 'Cửa hàng';
+    final greeting = _greeting();
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 120),
       children: [
@@ -272,8 +296,8 @@ class HomeMobile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Good morning,', style: RMType.body(size: 12.5, weight: FontWeight.w600, color: RM.muted)),
-                  Text('Bếp Nhà Hằng', style: RMType.body(size: 17, weight: FontWeight.w700, height: 1.1)),
+                  Text(greeting, style: RMType.body(size: 12.5, weight: FontWeight.w600, color: RM.muted)),
+                  Text(wsName, style: RMType.body(size: 17, weight: FontWeight.w700, height: 1.1)),
                 ],
               ),
             ),
@@ -283,7 +307,7 @@ class HomeMobile extends StatelessWidget {
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const StatusDot(RM.herb),
                 const SizedBox(width: 7),
-                Text('Open', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.herb)),
+                Text('Mở cửa', style: RMType.body(size: 12, weight: FontWeight.w700, color: RM.herb)),
               ]),
             ),
             const SizedBox(width: 8),
@@ -307,19 +331,34 @@ class HomeMobile extends StatelessWidget {
         const SizedBox(height: 16),
         const _QuickActions(),
         const SizedBox(height: 18),
-        SectionHead('Active orders', action: 'See all', onAction: () => AppNav.goTab(1)),
+        SectionHead('Đơn đang xử lý', action: 'Xem tất cả', onAction: () => AppNav.goTab(1)),
         const _ActiveOrders(limit: 2),
       ],
     );
   }
 }
 
+String _greeting() {
+  final h = DateTime.now().hour;
+  if (h < 12) return 'Chào buổi sáng,';
+  if (h < 18) return 'Chào buổi chiều,';
+  return 'Chào buổi tối,';
+}
+
 // ── TABLET ───────────────────────────────────────────────────────────
 
-class HomeTablet extends StatelessWidget {
+class HomeTablet extends ConsumerWidget {
   const HomeTablet({super.key});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authNotifierProvider);
+    final wsState = ref.watch(workspaceNotifierProvider);
+    final activeWs = wsState.workspaces
+        .where((w) => w.id == auth.activeWorkspaceId)
+        .firstOrNull;
+    final wsName = activeWs?.name ?? auth.displayName ?? 'Cửa hàng';
+    final now = DateTime.now();
+    final dateStr = '${now.day}/${now.month}/${now.year}';
     return Container(
       color: RM.cream,
       child: ListView(
@@ -331,8 +370,8 @@ class HomeTablet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Good morning, Hằng', style: RMType.display(size: 26)),
-                    Text('Tuesday, 30 May · Bếp Nhà Hằng', style: RMType.body(size: 13.5, color: RM.muted)),
+                    Text('${_greeting()} ${auth.displayName ?? ''}', style: RMType.display(size: 26)),
+                    Text('$dateStr · $wsName', style: RMType.body(size: 13.5, color: RM.muted)),
                   ],
                 ),
               ),
@@ -342,7 +381,7 @@ class HomeTablet extends StatelessWidget {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   const StatusDot(RM.herb),
                   const SizedBox(width: 7),
-                  Text('Store open', style: RMType.body(size: 12.5, weight: FontWeight.w700, color: RM.herb)),
+                  Text('Mở cửa', style: RMType.body(size: 12.5, weight: FontWeight.w700, color: RM.herb)),
                 ]),
               ),
             ],
@@ -397,7 +436,7 @@ class HomeTablet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SectionHead('Active orders', action: 'See all', onAction: () => AppNav.goTab(1)),
+                    SectionHead('Đơn đang xử lý', action: 'Xem tất cả', onAction: () => AppNav.goTab(1)),
                     const _ActiveOrders(limit: 3),
                   ],
                 ),

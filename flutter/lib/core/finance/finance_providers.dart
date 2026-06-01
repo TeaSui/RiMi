@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../data/drift/app_database.dart';
 import '../auth/auth_notifier.dart';
 import '../network/dio_client.dart';
+import '../orders/order_providers.dart';
 import '../sync/sync_providers.dart';
 
 /// Stream of income entries from local Drift DB for the given workspace,
@@ -24,24 +25,34 @@ final expensesProvider =
   return db.financeDao.watchExpensesByWorkspace(workspaceId);
 });
 
-/// Derived P&L summary for the given workspace computed from cached entries.
+/// Derived P&L summary for the given workspace.
 ///
-/// Returns a [PLSummary] with total income, total expenses, and net profit
-/// as VND-formatted strings.
+/// Revenue = completed order totals + manual income entries.
+/// Expenses = expense entries only.
 final plSummaryProvider =
     Provider.family<PLSummary, String>((ref, workspaceId) {
   final incomeAsync = ref.watch(incomeProvider(workspaceId));
   final expensesAsync = ref.watch(expensesProvider(workspaceId));
+  final ordersAsync = ref.watch(ordersProvider(workspaceId));
 
   final incomeList =
       incomeAsync.maybeWhen(data: (v) => v, orElse: () => <IncomeEntry>[]);
   final expenseList =
       expensesAsync.maybeWhen(data: (v) => v, orElse: () => <ExpenseEntry>[]);
+  final orderList =
+      ordersAsync.maybeWhen(data: (v) => v, orElse: () => <Order>[]);
 
-  final totalIncome = incomeList.fold<int>(
+  // Sum completed orders as revenue
+  final orderRevenue = orderList
+      .where((o) => o.status == 'done')
+      .fold<int>(0, (sum, o) => sum + o.totalAmount);
+
+  final manualIncome = incomeList.fold<int>(
     0,
     (sum, e) => sum + (int.tryParse(e.amount.split('.').first) ?? 0),
   );
+  final totalIncome = orderRevenue + manualIncome;
+
   final totalExpense = expenseList.fold<int>(
     0,
     (sum, e) => sum + (int.tryParse(e.amount.split('.').first) ?? 0),
